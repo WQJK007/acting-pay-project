@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>acting-pay-parent</artifactId>
+        <groupId>com.unicom.acting.pay</groupId>
+        <version>${revision}</version>
+        <relativePath>../acting-pay-parent</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>acting-pay-domain</artifactId>
+    <name>acting-pay-domain</name>
+    <description>cBSS系统账务中心交易类业务公共domain组件</description>
+
+</project>

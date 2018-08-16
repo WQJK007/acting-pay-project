@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>skyark-component-parent</artifactId>
+        <groupId>com.unicom.skyark.component</groupId>
+        <version>1.0.0.RELEASE</version>
+        <relativePath/>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.unicom.acting.pay</groupId>
+    <artifactId>acting-pay-project</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+    <name>acting-pay-project</name>
+    <description>cBSS系统账务中心交易类业务组件工程</description>
+    <modules>
+        <module>acting-pay-dependencies</module>
+        <module>acting-pay-parent</module>
+        <module>acting-pay-domain</module>
+        <module>acting-pay-dao</module>
+        <module>acting-pay-writeoff</module>
+        <module>acting-pay-recvfee</module>
+    </modules>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- 版本管理 -->
+        <revision>1.0.0.RELEASE</revision>
+        <acting-fee.version>1.0.0.RELEASE</acting-fee.version>
+    </properties>
+</project>
