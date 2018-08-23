@@ -20,6 +20,10 @@
             <artifactId>skyark-component-mq</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.unicom.acting.pay</groupId>
+            <artifactId>acting-pay-dao</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.unicom.acting.fee</groupId>
             <artifactId>acting-fee-writeoff</artifactId>
         </dependency>

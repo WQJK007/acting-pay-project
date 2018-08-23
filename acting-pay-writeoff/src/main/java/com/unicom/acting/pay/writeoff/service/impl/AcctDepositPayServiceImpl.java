@@ -1,19 +1,20 @@
 package com.unicom.acting.pay.writeoff.service.impl;
 
+import com.unicom.acting.fee.domain.FeeAccountDeposit;
+import com.unicom.acting.fee.writeoff.domain.TradeCommInfoIn;
 import com.unicom.acting.pay.domain.DepositMQInfo;
+import com.unicom.acting.pay.writeoff.domain.RecvFeeCommInfoIn;
+import com.unicom.acting.pay.writeoff.domain.TransFeeCommInfoIn;
 import com.unicom.skyark.component.exception.SkyArkException;
 import com.unicom.skyark.component.util.StringUtil;
 import com.unicom.skyark.component.util.TimeUtil;
 import com.unicom.skyark.component.web.rest.RestClient;
 
-import com.unicom.acting.fee.calc.domain.TradeCommInfo;
-import com.unicom.acting.fee.calc.service.BillService;
-import com.unicom.acting.fee.calc.service.DepositService;
+import com.unicom.acting.fee.calc.service.BillCalcService;
+import com.unicom.acting.fee.calc.service.DepositCalcService;
 import com.unicom.acting.fee.domain.*;
 import com.unicom.acting.fee.writeoff.service.SysCommOperFeeService;
 import com.unicom.acting.pay.writeoff.service.AcctDepositPayService;
-import com.unicom.acts.pay.domain.Account;
-import com.unicom.acts.pay.domain.AccountDeposit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,14 +38,14 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
     @Autowired
     private SysCommOperFeeService sysCommOperPayService;
     @Autowired
-    private BillService billService;
+    private BillCalcService billCalcService;
     @Autowired
-    private DepositService depositService;
+    private DepositCalcService depositCalcService;
 
     @Override
-    public List<DepositMQInfo> genDepositMQInfo(List<AccountDeposit> accountDepositList) {
-        List<DepositMQInfo> depositMQInfoList = new ArrayList(accountDepositList.size());
-        for (AccountDeposit deposit : accountDepositList) {
+    public List<DepositMQInfo> genDepositMQInfo(List<FeeAccountDeposit> feeAccountDeposits) {
+        List<DepositMQInfo> depositMQInfoList = new ArrayList(feeAccountDeposits.size());
+        for (FeeAccountDeposit deposit : feeAccountDeposits) {
             DepositMQInfo depositMQInfo = new DepositMQInfo();
             depositMQInfo.setAcctBalanceId(deposit.getAcctBalanceId());
             depositMQInfo.setAcctId(deposit.getAcctId());
@@ -86,11 +87,11 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
 
     //根据交易信息生成账本
     @Override
-    public AccountDeposit genAcctDeposit(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo) {
-        if (tradeCommInfo.getAccount() == null) {
+    public FeeAccountDeposit genAcctDeposit(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo) {
+        if (tradeCommInfo.getFeeAccount() == null) {
             throw new SkyArkException("没有账户信息，请先查询账户资料");
         }
-        Account account = tradeCommInfo.getAccount();
+        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
 
         if (tradeCommInfo.getMainUser() == null) {
             throw new SkyArkException("没有用户信息，请先查询用户资料");
@@ -102,34 +103,34 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
         }
         WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
 
-        AccountDeposit accountDeposit = new AccountDeposit();
-        PaymentDeposit paymentDeposit = writeOffRuleInfo.getPaymentDeposit(tradeCommInfoIn.getPaymentId(), tradeCommInfoIn.getPayFeeModeCode());
+        FeeAccountDeposit actDeposit = new FeeAccountDeposit();
+        PaymentDeposit paymentDeposit = writeOffRuleInfo.getPaymentDeposit(recvFeeCommInfoIn.getPaymentId(), recvFeeCommInfoIn.getPayFeeModeCode());
 
         if (paymentDeposit == null) {
-            throw new SkyArkException("没有配置储值方式和帐本科目关系!paymentId=" + tradeCommInfoIn.getPaymentId() + ",payFeeModeCode=" + tradeCommInfoIn.getPayFeeModeCode());
+            throw new SkyArkException("没有配置储值方式和帐本科目关系!paymentId=" + recvFeeCommInfoIn.getPaymentId() + ",payFeeModeCode=" + recvFeeCommInfoIn.getPayFeeModeCode());
         }
         logger.info("depositCode=" + paymentDeposit.getDepositCode());
 
         //以外围传入的可打金额属性为准
-        if (!StringUtil.isEmptyCheckNullStr(tradeCommInfoIn.getInvoiceTag())) {
-            if ("2".equals(tradeCommInfoIn.getInvoiceTag())) {
+        if (!StringUtil.isEmptyCheckNullStr(recvFeeCommInfoIn.getInvoiceTag())) {
+            if ("2".equals(recvFeeCommInfoIn.getInvoiceTag())) {
                 paymentDeposit.setInvoiceTag('1');
             } else {
-                paymentDeposit.setInvoiceTag(StringUtil.firstOfString(tradeCommInfoIn.getInvoiceTag()));
+                paymentDeposit.setInvoiceTag(StringUtil.firstOfString(recvFeeCommInfoIn.getInvoiceTag()));
             }
         }
 
         //帐本使用级别
-        char privateTag = StringUtil.firstOfString(tradeCommInfoIn.getPrivateTag());
+        char privateTag = StringUtil.firstOfString(recvFeeCommInfoIn.getPrivateTag());
         //如果程序外没有传入使用等级以配置表里的为准。
         if ('0' != privateTag && '1' != privateTag) {
             privateTag = paymentDeposit.getPrivateTag();
         }
         //抵扣期间生成DMN日志使用
-        tradeCommInfoIn.setPrivateTag(String.valueOf(privateTag));
+        recvFeeCommInfoIn.setPrivateTag(String.valueOf(privateTag));
 
         //校验账本生效时间是否合法
-        String depositStartDate = tradeCommInfoIn.getDepositStartDate();
+        String depositStartDate = recvFeeCommInfoIn.getDepositStartDate();
         if (!StringUtil.isEmptyCheckNullStr(depositStartDate)
                 && (depositStartDate.length() < 10
                 || !"-".equals(depositStartDate.substring(4, 5))
@@ -137,28 +138,28 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
             throw new SkyArkException("帐本生效时间不合法!必须为YYYY-MM-DD HH24:MI:SS格式,传入的账本生效时间为" + depositStartDate);
         }
 
-        if (tradeCommInfoIn.getMonths() > ActPayPubDef.MAX_MONTH_NUM || tradeCommInfoIn.getMonths() <= 0) {
-            tradeCommInfoIn.setMonths(ActPayPubDef.MAX_MONTH_NUM);
+        if (recvFeeCommInfoIn.getMonths() > ActingFeePubDef.MAX_MONTH_NUM || recvFeeCommInfoIn.getMonths() <= 0) {
+            recvFeeCommInfoIn.setMonths(ActingFeePubDef.MAX_MONTH_NUM);
         }
 
-        logger.info("depositStartDate=" + depositStartDate + ",months=" + tradeCommInfoIn.getMonths() + ",privateTag=" + privateTag);
+        logger.info("depositStartDate=" + depositStartDate + ",months=" + recvFeeCommInfoIn.getMonths() + ",privateTag=" + privateTag);
 
         //外围没有传入账本生效时间或者传入的生效时间小于系统当前时间设置为false,这种情况可以与现有同类型账本做合并
         boolean appointedStartDate = true;
         if (StringUtil.isEmptyCheckNullStr(depositStartDate) ||
                 depositStartDate.substring(0, 10).compareTo(writeOffRuleInfo.getSysdate().substring(0, 10)) < 0) {
-            tradeCommInfoIn.setDepositStartDate(writeOffRuleInfo.getSysdate());
+            recvFeeCommInfoIn.setDepositStartDate(writeOffRuleInfo.getSysdate());
             appointedStartDate = false;
         }
 
         //如果存在负账单，负账单要转化为指定账本 commpara表参数ASM_NEGATIVEBILL_DEPOSIT,cBSS目前配1007账本
         int negativeBillDeposit = writeOffRuleInfo.getNegativeBillDeposit();
-        List<Bill> bills = tradeCommInfo.getBills();
+        List<FeeBill> bills = tradeCommInfo.getFeeBills();
         if (negativeBillDeposit >= 0) {
             boolean negativeBillTag = false;   //是否存在负账单    默认不存在,如果存在设置为true
             if (!CollectionUtils.isEmpty(bills)) {
-                for (Bill pBill : bills) {
-                    if (billService.getBillBalance(pBill) < 0 && pBill.getCanpayTag() != '2') {
+                for (FeeBill pBill : bills) {
+                    if (billCalcService.getBillBalance(pBill) < 0 && pBill.getCanpayTag() != '2') {
                         negativeBillTag = true;
                         break;
                     }
@@ -166,64 +167,64 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
             }
 
             if (negativeBillTag) {
-                AccountDeposit negativeAccountDeposit = depositService.getAcctDepositByDepositCode(tradeCommInfo.getAccountDeposits(), negativeBillDeposit);
+                FeeAccountDeposit negativeFeeAccountDeposit = depositCalcService.getAcctDepositByDepositCode(tradeCommInfo.getFeeAccountDeposits(), negativeBillDeposit);
                 //如果不存在负账本
-                if (negativeAccountDeposit == null) {
-                    String acctBalanceId = sysCommOperPayService.getSequence(tradeCommInfoIn.getEparchyCode(),
-                            ActPayPubDef.SEQ_ACCTBALANCE_ID, tradeCommInfoIn.getProvinceCode());
+                if (negativeFeeAccountDeposit == null) {
+                    String acctBalanceId = sysCommOperPayService.getSequence(recvFeeCommInfoIn.getEparchyCode(),
+                            ActingFeePubDef.SEQ_ACCTBALANCE_ID, recvFeeCommInfoIn.getProvinceCode());
                     if ("".equals(acctBalanceId)) {
                         throw new SkyArkException("获取账本实例失败!SEQ_ACCTBALANCE_ID");
                     }
-                    negativeAccountDeposit = new AccountDeposit();
-                    negativeAccountDeposit.setAcctBalanceId(acctBalanceId);
-                    negativeAccountDeposit.setAcctId(account.getAcctId());
-                    negativeAccountDeposit.setUserId(mainUser.getUserId());
-                    negativeAccountDeposit.setDepositCode(negativeBillDeposit);
-                    negativeAccountDeposit.setRecvFee(0);
-                    negativeAccountDeposit.setInitMoney(0);
-                    negativeAccountDeposit.setIfInAccesslog('1');
-                    negativeAccountDeposit.setInvoiceFee(0);
-                    negativeAccountDeposit.setLimitMoney(-1);
-                    negativeAccountDeposit.setLimitMode('0'); // 限额方式
-                    negativeAccountDeposit.setStartCycleId(ActPayPubDef.MIN_CYCLE_ID);
-                    negativeAccountDeposit.setEndCycleId(ActPayPubDef.MAX_CYCLE_ID);
-                    negativeAccountDeposit.setStartDate(tradeCommInfoIn.getDepositStartDate()); // 帐本生效开始时间
-                    negativeAccountDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(negativeAccountDeposit.getEndCycleId()).getCycEndTime());
-                    negativeAccountDeposit.setActionCode(-1);
-                    negativeAccountDeposit.setProvinceCode(account.getProvinceCode());
-                    negativeAccountDeposit.setEparchyCode(account.getEparchyCode());
-                    negativeAccountDeposit.setPrivateTag('0');
-                    negativeAccountDeposit.setVersionNo(1); // 更新版本号
-                    negativeAccountDeposit.setNewFlag('1'); // 新增标志
-                    negativeAccountDeposit.setValidTag('0');
-                    depositService.accountDepositUpAndSort(writeOffRuleInfo,
-                            tradeCommInfo.getAccountDeposits(), negativeAccountDeposit);
+                    negativeFeeAccountDeposit = new FeeAccountDeposit();
+                    negativeFeeAccountDeposit.setAcctBalanceId(acctBalanceId);
+                    negativeFeeAccountDeposit.setAcctId(feeAccount.getAcctId());
+                    negativeFeeAccountDeposit.setUserId(mainUser.getUserId());
+                    negativeFeeAccountDeposit.setDepositCode(negativeBillDeposit);
+                    negativeFeeAccountDeposit.setRecvFee(0);
+                    negativeFeeAccountDeposit.setInitMoney(0);
+                    negativeFeeAccountDeposit.setIfInAccesslog('1');
+                    negativeFeeAccountDeposit.setInvoiceFee(0);
+                    negativeFeeAccountDeposit.setLimitMoney(-1);
+                    negativeFeeAccountDeposit.setLimitMode('0'); // 限额方式
+                    negativeFeeAccountDeposit.setStartCycleId(ActingFeePubDef.MIN_CYCLE_ID);
+                    negativeFeeAccountDeposit.setEndCycleId(ActingFeePubDef.MAX_CYCLE_ID);
+                    negativeFeeAccountDeposit.setStartDate(recvFeeCommInfoIn.getDepositStartDate()); // 帐本生效开始时间
+                    negativeFeeAccountDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(negativeFeeAccountDeposit.getEndCycleId()).getCycEndTime());
+                    negativeFeeAccountDeposit.setActionCode(-1);
+                    negativeFeeAccountDeposit.setProvinceCode(feeAccount.getProvinceCode());
+                    negativeFeeAccountDeposit.setEparchyCode(feeAccount.getEparchyCode());
+                    negativeFeeAccountDeposit.setPrivateTag('0');
+                    negativeFeeAccountDeposit.setVersionNo(1); // 更新版本号
+                    negativeFeeAccountDeposit.setNewFlag('1'); // 新增标志
+                    negativeFeeAccountDeposit.setValidTag('0');
+                    depositCalcService.accountDepositUpAndSort(writeOffRuleInfo,
+                            tradeCommInfo.getFeeAccountDeposits(), negativeFeeAccountDeposit);
                 }
             }
         }
 
         boolean find = false;
-        List<AccountDeposit> deposits = depositService.getAcctDepositsByDepositCode(tradeCommInfo.getAccountDeposits(), paymentDeposit.getDepositCode());
+        List<FeeAccountDeposit> deposits = depositCalcService.getAcctDepositsByDepositCode(tradeCommInfo.getFeeAccountDeposits(), paymentDeposit.getDepositCode());
         if (!CollectionUtils.isEmpty(deposits)) {
-            for (AccountDeposit pAcctDeposit : deposits) {
-                if (pAcctDeposit.getEndCycleId() < ActPayPubDef.MAX_CYCLE_ID) {
+            for (FeeAccountDeposit pFeeAccountDeposit : deposits) {
+                if (pFeeAccountDeposit.getEndCycleId() < ActingFeePubDef.MAX_CYCLE_ID) {
                     continue;
                 }
-                if (pAcctDeposit.getEndCycleId() >= writeOffRuleInfo.getCurCycle().getCycleId()
+                if (pFeeAccountDeposit.getEndCycleId() >= writeOffRuleInfo.getCurCycle().getCycleId()
                         && !appointedStartDate
-                        && '0' == StringUtil.firstOfString(tradeCommInfoIn.getLimitMode())  //没有月限额
-                        && '0' == pAcctDeposit.getLimitMode() //无限额
-                        && tradeCommInfoIn.getMonths() == ActPayPubDef.MAX_MONTH_NUM //没有指定使用月份
-                        && writeOffRuleInfo.depositIfUnite(pAcctDeposit.getDepositCode())
-                        && pAcctDeposit.getActionCode() <= 0
-                        && pAcctDeposit.getValidTag() == tradeCommInfoIn.getValidTag() //帐本状态一样
-                        && ('1' != pAcctDeposit.getPrivateTag() && '1' != privateTag
-                        || '1' == pAcctDeposit.getPrivateTag() && '1' == privateTag
-                        && pAcctDeposit.getUserId().equals(mainUser.getUserId()))
-                        && writeOffRuleInfo.getSysdate().compareTo(pAcctDeposit.getStartDate()) > 0) {
+                        && '0' == StringUtil.firstOfString(recvFeeCommInfoIn.getLimitMode())  //没有月限额
+                        && '0' == pFeeAccountDeposit.getLimitMode() //无限额
+                        && recvFeeCommInfoIn.getMonths() == ActingFeePubDef.MAX_MONTH_NUM //没有指定使用月份
+                        && writeOffRuleInfo.depositIfUnite(pFeeAccountDeposit.getDepositCode())
+                        && pFeeAccountDeposit.getActionCode() <= 0
+                        && pFeeAccountDeposit.getValidTag() == recvFeeCommInfoIn.getValidTag() //帐本状态一样
+                        && ('1' != pFeeAccountDeposit.getPrivateTag() && '1' != privateTag
+                        || '1' == pFeeAccountDeposit.getPrivateTag() && '1' == privateTag
+                        && pFeeAccountDeposit.getUserId().equals(mainUser.getUserId()))
+                        && writeOffRuleInfo.getSysdate().compareTo(pFeeAccountDeposit.getStartDate()) > 0) {
                     //可以合并,非私有(或者相同用户的私有)
                     find = true;
-                    accountDeposit = pAcctDeposit;
+                    actDeposit = pFeeAccountDeposit;
                     break;
                 }
             }
@@ -232,9 +233,9 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
         logger.info("find = " + find);
 
         // 如果已经使用旧账本 且是营业过来的私有缴费 则判断用户是否有预打账单 有就强制生成新账本
-        if (find && privateTag == '1' && "15000".equals(tradeCommInfoIn.getChannelId())) {
+        if (find && privateTag == '1' && "15000".equals(recvFeeCommInfoIn.getChannelId())) {
             if (!CollectionUtils.isEmpty(bills)) {
-                for (Bill bill : bills) {
+                for (FeeBill bill : bills) {
                     if (bill.getPayTag() == '8' && mainUser.getUserId().equals(bill.getUserId())) {
                         find = false;
                         break;
@@ -245,106 +246,106 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
 
         //没有可用的帐本
         if (!find) {
-            String acctBalanceId = sysCommOperPayService.getSequence(tradeCommInfoIn.getEparchyCode(),
-                    ActPayPubDef.SEQ_ACCTBALANCE_ID, tradeCommInfoIn.getProvinceCode());
+            String acctBalanceId = sysCommOperPayService.getSequence(recvFeeCommInfoIn.getEparchyCode(),
+                    ActingFeePubDef.SEQ_ACCTBALANCE_ID, recvFeeCommInfoIn.getProvinceCode());
             if ("".equals(acctBalanceId)) {
                 throw new SkyArkException("获取账本实例失败!SEQ_ACCTBALANCE_ID");
             }
-            //accountDeposit = new AccountDeposit();
-            accountDeposit.setAcctBalanceId(acctBalanceId);
-            accountDeposit.setAcctId(account.getAcctId());
-            accountDeposit.setUserId(mainUser.getUserId());
-            accountDeposit.setDepositCode(paymentDeposit.getDepositCode());
-            accountDeposit.setRecvFee(tradeCommInfoIn.getTradeFee());
-            accountDeposit.setInitMoney(accountDeposit.getRecvFee());
-            accountDeposit.setIfInAccesslog('1');
+            //actDeposit = new FeeAccountDeposit();
+            actDeposit.setAcctBalanceId(acctBalanceId);
+            actDeposit.setAcctId(feeAccount.getAcctId());
+            actDeposit.setUserId(mainUser.getUserId());
+            actDeposit.setDepositCode(paymentDeposit.getDepositCode());
+            actDeposit.setRecvFee(recvFeeCommInfoIn.getTradeFee());
+            actDeposit.setInitMoney(actDeposit.getRecvFee());
+            actDeposit.setIfInAccesslog('1');
 
             //设置限额方式
-            accountDeposit.setLimitMode(StringUtil.firstOfString(tradeCommInfoIn.getLimitMode()));
-            if (tradeCommInfoIn.getLimitMoney() <= 0
-                    || tradeCommInfoIn.getLimitMoney() >= ActPayPubDef.MAX_LIMIT_FEE) {
-                accountDeposit.setLimitMoney(-1);
+            actDeposit.setLimitMode(StringUtil.firstOfString(recvFeeCommInfoIn.getLimitMode()));
+            if (recvFeeCommInfoIn.getLimitMoney() <= 0
+                    || recvFeeCommInfoIn.getLimitMoney() >= ActingFeePubDef.MAX_LIMIT_FEE) {
+                actDeposit.setLimitMoney(-1);
             } else {
                 //限额
-                accountDeposit.setLimitMoney(tradeCommInfoIn.getLimitMoney());
+                actDeposit.setLimitMoney(recvFeeCommInfoIn.getLimitMoney());
             }
 
             //设置账本销账账期范围
-            if (ActPayPubDef.MAX_MONTH_NUM == tradeCommInfoIn.getMonths()
-                    || tradeCommInfoIn.getMonths() <= 0) {
-                accountDeposit.setStartCycleId(ActPayPubDef.MIN_CYCLE_ID);
-                accountDeposit.setEndCycleId(ActPayPubDef.MAX_CYCLE_ID);
+            if (ActingFeePubDef.MAX_MONTH_NUM == recvFeeCommInfoIn.getMonths()
+                    || recvFeeCommInfoIn.getMonths() <= 0) {
+                actDeposit.setStartCycleId(ActingFeePubDef.MIN_CYCLE_ID);
+                actDeposit.setEndCycleId(ActingFeePubDef.MAX_CYCLE_ID);
             } else {
-                String tmpDepositStartDate = tradeCommInfoIn.getDepositStartDate();
-                accountDeposit.setStartCycleId(Integer.parseInt(tmpDepositStartDate.substring(0, 4) + tmpDepositStartDate.substring(5, 7)));
-                accountDeposit.setEndCycleId(TimeUtil.genCycle(accountDeposit.getStartCycleId(), (tradeCommInfoIn.getMonths() - 1)));
-                if (accountDeposit.getEndCycleId() > ActPayPubDef.MAX_CYCLE_ID) {
-                    accountDeposit.setEndCycleId(ActPayPubDef.MAX_CYCLE_ID);
+                String tmpDepositStartDate = recvFeeCommInfoIn.getDepositStartDate();
+                actDeposit.setStartCycleId(Integer.parseInt(tmpDepositStartDate.substring(0, 4) + tmpDepositStartDate.substring(5, 7)));
+                actDeposit.setEndCycleId(TimeUtil.genCycle(actDeposit.getStartCycleId(), (recvFeeCommInfoIn.getMonths() - 1)));
+                if (actDeposit.getEndCycleId() > ActingFeePubDef.MAX_CYCLE_ID) {
+                    actDeposit.setEndCycleId(ActingFeePubDef.MAX_CYCLE_ID);
                 }
             }
 
             //设置账本生失效时间
-            accountDeposit.setStartDate(tradeCommInfoIn.getDepositStartDate());
-            if (accountDeposit.getEndCycleId() >= ActPayPubDef.MAX_CYCLE_ID) {
-                accountDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(accountDeposit.getEndCycleId()).getCycEndTime());
+            actDeposit.setStartDate(recvFeeCommInfoIn.getDepositStartDate());
+            if (actDeposit.getEndCycleId() >= ActingFeePubDef.MAX_CYCLE_ID) {
+                actDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(actDeposit.getEndCycleId()).getCycEndTime());
             } else {
-                accountDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(TimeUtil.genCycle(accountDeposit.getEndCycleId(), 1)).getCycEndTime());
+                actDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(TimeUtil.genCycle(actDeposit.getEndCycleId(), 1)).getCycEndTime());
             }
 
-            accountDeposit.setActionCode(0);
-            accountDeposit.setProvinceCode(account.getProvinceCode());
-            accountDeposit.setEparchyCode(account.getEparchyCode());
-            accountDeposit.setPrivateTag(privateTag);
-            accountDeposit.setVersionNo(1);
-            accountDeposit.setNewFlag('1');
-            accountDeposit.setValidTag('0');
+            actDeposit.setActionCode(0);
+            actDeposit.setProvinceCode(feeAccount.getProvinceCode());
+            actDeposit.setEparchyCode(feeAccount.getEparchyCode());
+            actDeposit.setPrivateTag(privateTag);
+            actDeposit.setVersionNo(1);
+            actDeposit.setNewFlag('1');
+            actDeposit.setValidTag('0');
         } else {
-            accountDeposit.setRecvFee(accountDeposit.getRecvFee() + tradeCommInfoIn.getTradeFee());
-            accountDeposit.setIfInAccesslog('1');
+            actDeposit.setRecvFee(actDeposit.getRecvFee() + recvFeeCommInfoIn.getTradeFee());
+            actDeposit.setIfInAccesslog('1');
         }
 
         //可作为发票金额
         if ('1' == paymentDeposit.getInvoiceTag()) {
             //发票金额
             long invoiceFee = 0;
-            if (!StringUtil.isEmptyCheckNullStr((tradeCommInfoIn.getInvoiceTag()))) {
+            if (!StringUtil.isEmptyCheckNullStr((recvFeeCommInfoIn.getInvoiceTag()))) {
                 //
-                if ("2".equals(tradeCommInfoIn.getInvoiceTag())) {
-                    invoiceFee = tradeCommInfoIn.getInvoiceFee();
+                if ("2".equals(recvFeeCommInfoIn.getInvoiceTag())) {
+                    invoiceFee = recvFeeCommInfoIn.getInvoiceFee();
 
                 } else {
-                    invoiceFee = tradeCommInfoIn.getTradeFee();
+                    invoiceFee = recvFeeCommInfoIn.getTradeFee();
                 }
             } else {
-                if (StringUtil.isEmptyCheckNullStr(tradeCommInfoIn.getFeePayMode())
-                        || "01".equals(tradeCommInfoIn.getFeePayMode())) {
+                if (StringUtil.isEmptyCheckNullStr(recvFeeCommInfoIn.getFeePayMode())
+                        || "01".equals(recvFeeCommInfoIn.getFeePayMode())) {
                     //现金缴费
-                    invoiceFee = tradeCommInfoIn.getTradeFee();
-                } else if ("02".equals(tradeCommInfoIn.getFeePayMode())) {
+                    invoiceFee = recvFeeCommInfoIn.getTradeFee();
+                } else if ("02".equals(recvFeeCommInfoIn.getFeePayMode())) {
                     //现金+积分缴费
-                    invoiceFee = tradeCommInfoIn.getTradeFee() - tradeCommInfoIn.getUserScore();
-                } else if ("03".equals(tradeCommInfoIn.getFeePayMode())) {
+                    invoiceFee = recvFeeCommInfoIn.getTradeFee() - recvFeeCommInfoIn.getUserScore();
+                } else if ("03".equals(recvFeeCommInfoIn.getFeePayMode())) {
                     //积分缴费
                     invoiceFee = 0;
                 }
 
             }
-            accountDeposit.setInvoiceFee(accountDeposit.getInvoiceFee() + invoiceFee);
-            tradeCommInfo.setInvoiceFee(accountDeposit.getAcctBalanceId(), invoiceFee);
+            actDeposit.setInvoiceFee(actDeposit.getInvoiceFee() + invoiceFee);
+            tradeCommInfo.setInvoiceFee(actDeposit.getAcctBalanceId(), invoiceFee);
         }
 
         //设置paylog表对象
-        //tradeCommInfo.setReccFee(tradeCommInfoIn.getPaymentId(), accountDeposit.getRecvFee());
-        return accountDeposit;
+        //tradeCommInfo.setReccFee(recvFeeCommInfoIn.getPaymentId(), actDeposit.getRecvFee());
+        return actDeposit;
     }
 
     //根据账本类型生成账本
     @Override
-    public AccountDeposit genAcctDepositByDepositCode(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, int depositCode) {
-        if (tradeCommInfo.getAccount() == null) {
+    public FeeAccountDeposit genAcctDepositByDepositCode(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo, int depositCode) {
+        if (tradeCommInfo.getFeeAccount() == null) {
             throw new SkyArkException("没有账户信息，请先查询账户资料");
         }
-        Account account = tradeCommInfo.getAccount();
+        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
 
         if (tradeCommInfo.getMainUser() == null) {
             throw new SkyArkException("没有用户信息，请先查询用户资料");
@@ -356,16 +357,16 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
         }
         WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
 
-        AccountDeposit accountDeposit = new AccountDeposit();
+        FeeAccountDeposit actDeposit = new FeeAccountDeposit();
         //帐本使用级别
-        char privateTag = StringUtil.firstOfString(tradeCommInfoIn.getPrivateTag());
+        char privateTag = StringUtil.firstOfString(recvFeeCommInfoIn.getPrivateTag());
         //如果程序外没有传入使用等级以配置表里的为准。
         if ('0' != privateTag && '1' != privateTag) {
             privateTag = '0';
         }
 
         //校验账本生效时间是否合法
-        String depositStartDate = tradeCommInfoIn.getDepositStartDate();
+        String depositStartDate = recvFeeCommInfoIn.getDepositStartDate();
         if (!StringUtil.isEmptyCheckNullStr(depositStartDate)
                 && (depositStartDate.length() < 10
                 || !"-".equals(depositStartDate.substring(4, 5))
@@ -373,35 +374,35 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
             throw new SkyArkException("帐本生效时间不合法!必须为YYYY-MM-DD HH24:MI:SS格式,传入的账本生效时间为" + depositStartDate);
         }
 
-        logger.info("depositStartDate=" + depositStartDate + ",months=" + tradeCommInfoIn.getMonths() + ",privateTag=" + privateTag);
+        logger.info("depositStartDate=" + depositStartDate + ",months=" + recvFeeCommInfoIn.getMonths() + ",privateTag=" + privateTag);
 
         //外围没有传入账本生效时间或者传入的生效时间小于系统当前时间设置为false,这种情况可以与现有同类型账本做合并
         boolean appointedStartDate = true;
         if (StringUtil.isEmptyCheckNullStr(depositStartDate) ||
                 depositStartDate.substring(0, 10).compareTo(writeOffRuleInfo.getSysdate().substring(0, 10)) < 0) {
-            tradeCommInfoIn.setDepositStartDate(writeOffRuleInfo.getSysdate());
+            recvFeeCommInfoIn.setDepositStartDate(writeOffRuleInfo.getSysdate());
             appointedStartDate = false;
         }
 
         boolean find = false;
-        List<AccountDeposit> deposits = depositService.getAcctDepositsByDepositCode(tradeCommInfo.getAccountDeposits(), depositCode);
+        List<FeeAccountDeposit> deposits = depositCalcService.getAcctDepositsByDepositCode(tradeCommInfo.getFeeAccountDeposits(), depositCode);
         if (!CollectionUtils.isEmpty(deposits)) {
-            for (AccountDeposit pAcctDeposit : deposits) {
-                if (pAcctDeposit.getEndCycleId() >= writeOffRuleInfo.getCurCycle().getCycleId()
+            for (FeeAccountDeposit pFeeAccountDeposit : deposits) {
+                if (pFeeAccountDeposit.getEndCycleId() >= writeOffRuleInfo.getCurCycle().getCycleId()
                         && !appointedStartDate
-                        && '0' == StringUtil.firstOfString(tradeCommInfoIn.getLimitMode())  //没有月限额
-                        && '0' == pAcctDeposit.getLimitMode() //无限额
-                        && tradeCommInfoIn.getMonths() == ActPayPubDef.MAX_MONTH_NUM //没有指定使用月份
-                        && writeOffRuleInfo.depositIfUnite(pAcctDeposit.getDepositCode())
-                        && pAcctDeposit.getActionCode() <= 0
-                        && pAcctDeposit.getValidTag() == tradeCommInfoIn.getValidTag() //帐本状态一样
-                        && ('1' != pAcctDeposit.getPrivateTag() && '1' != privateTag
-                        || '1' == pAcctDeposit.getPrivateTag() && '1' == privateTag
-                        && pAcctDeposit.getUserId().equals(mainUser.getUserId()))
-                        && writeOffRuleInfo.getSysdate().compareTo(pAcctDeposit.getStartDate()) > 0) {
+                        && '0' == StringUtil.firstOfString(recvFeeCommInfoIn.getLimitMode())  //没有月限额
+                        && '0' == pFeeAccountDeposit.getLimitMode() //无限额
+                        && recvFeeCommInfoIn.getMonths() == ActingFeePubDef.MAX_MONTH_NUM //没有指定使用月份
+                        && writeOffRuleInfo.depositIfUnite(pFeeAccountDeposit.getDepositCode())
+                        && pFeeAccountDeposit.getActionCode() <= 0
+                        && pFeeAccountDeposit.getValidTag() == recvFeeCommInfoIn.getValidTag() //帐本状态一样
+                        && ('1' != pFeeAccountDeposit.getPrivateTag() && '1' != privateTag
+                        || '1' == pFeeAccountDeposit.getPrivateTag() && '1' == privateTag
+                        && pFeeAccountDeposit.getUserId().equals(mainUser.getUserId()))
+                        && writeOffRuleInfo.getSysdate().compareTo(pFeeAccountDeposit.getStartDate()) > 0) {
                     //可以合并,非私有(或者相同用户的私有)
                     find = true;
-                    accountDeposit = pAcctDeposit;
+                    actDeposit = pFeeAccountDeposit;
                     break;
                 }
             }
@@ -409,80 +410,80 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
 
         //没有可用的帐本
         if (!find) {
-            String acctBalanceId = sysCommOperPayService.getSequence(tradeCommInfoIn.getEparchyCode(),
-                    ActPayPubDef.SEQ_ACCTBALANCE_ID, tradeCommInfoIn.getProvinceCode());
+            String acctBalanceId = sysCommOperPayService.getSequence(recvFeeCommInfoIn.getEparchyCode(),
+                    ActingFeePubDef.SEQ_ACCTBALANCE_ID, recvFeeCommInfoIn.getProvinceCode());
             if ("".equals(acctBalanceId)) {
                 throw new SkyArkException("获取账本实例失败!SEQ_ACCTBALANCE_ID");
             }
-            accountDeposit.setAcctBalanceId(acctBalanceId);
-            accountDeposit.setAcctId(account.getAcctId());
-            accountDeposit.setUserId(mainUser.getUserId());
-            accountDeposit.setDepositCode(depositCode);
-            accountDeposit.setRecvFee(tradeCommInfoIn.getTradeFee());
-            accountDeposit.setInitMoney(accountDeposit.getRecvFee());
-            accountDeposit.setIfInAccesslog('1');
+            actDeposit.setAcctBalanceId(acctBalanceId);
+            actDeposit.setAcctId(feeAccount.getAcctId());
+            actDeposit.setUserId(mainUser.getUserId());
+            actDeposit.setDepositCode(depositCode);
+            actDeposit.setRecvFee(recvFeeCommInfoIn.getTradeFee());
+            actDeposit.setInitMoney(actDeposit.getRecvFee());
+            actDeposit.setIfInAccesslog('1');
 
             //设置限额方式
-            accountDeposit.setLimitMode(StringUtil.firstOfString(tradeCommInfoIn.getLimitMode()));
-            if (tradeCommInfoIn.getLimitMoney() <= 0
-                    || tradeCommInfoIn.getLimitMoney() >= ActPayPubDef.MAX_LIMIT_FEE) {
-                accountDeposit.setLimitMoney(-1);
+            actDeposit.setLimitMode(StringUtil.firstOfString(recvFeeCommInfoIn.getLimitMode()));
+            if (recvFeeCommInfoIn.getLimitMoney() <= 0
+                    || recvFeeCommInfoIn.getLimitMoney() >= ActingFeePubDef.MAX_LIMIT_FEE) {
+                actDeposit.setLimitMoney(-1);
             } else {
-                accountDeposit.setLimitMoney(tradeCommInfoIn.getLimitMoney());  //限额
+                actDeposit.setLimitMoney(recvFeeCommInfoIn.getLimitMoney());  //限额
             }
 
             //设置账本销账账期范围
-            if (ActPayPubDef.MAX_MONTH_NUM == tradeCommInfoIn.getMonths()
-                    || tradeCommInfoIn.getMonths() <= 0) {
-                accountDeposit.setStartCycleId(ActPayPubDef.MIN_CYCLE_ID);
-                accountDeposit.setEndCycleId(ActPayPubDef.MAX_CYCLE_ID);
+            if (ActingFeePubDef.MAX_MONTH_NUM == recvFeeCommInfoIn.getMonths()
+                    || recvFeeCommInfoIn.getMonths() <= 0) {
+                actDeposit.setStartCycleId(ActingFeePubDef.MIN_CYCLE_ID);
+                actDeposit.setEndCycleId(ActingFeePubDef.MAX_CYCLE_ID);
             } else {
-                String tmpDepositStartDate = tradeCommInfoIn.getDepositStartDate();
-                accountDeposit.setStartCycleId(Integer.parseInt(tmpDepositStartDate.substring(0, 4) + tmpDepositStartDate.substring(5, 7)));
-                accountDeposit.setEndCycleId(TimeUtil.genCycle(accountDeposit.getStartCycleId(), (tradeCommInfoIn.getMonths() - 1)));
-                if (accountDeposit.getEndCycleId() > ActPayPubDef.MAX_CYCLE_ID) {
-                    accountDeposit.setEndCycleId(ActPayPubDef.MAX_CYCLE_ID);
+                String tmpDepositStartDate = recvFeeCommInfoIn.getDepositStartDate();
+                actDeposit.setStartCycleId(Integer.parseInt(tmpDepositStartDate.substring(0, 4) + tmpDepositStartDate.substring(5, 7)));
+                actDeposit.setEndCycleId(TimeUtil.genCycle(actDeposit.getStartCycleId(), (recvFeeCommInfoIn.getMonths() - 1)));
+                if (actDeposit.getEndCycleId() > ActingFeePubDef.MAX_CYCLE_ID) {
+                    actDeposit.setEndCycleId(ActingFeePubDef.MAX_CYCLE_ID);
                 }
             }
 
             //设置账本生失效时间
-            accountDeposit.setStartDate(tradeCommInfoIn.getDepositStartDate());
-            if (accountDeposit.getEndCycleId() >= ActPayPubDef.MAX_CYCLE_ID) {
-                accountDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(accountDeposit.getEndCycleId()).getCycEndTime());
+            actDeposit.setStartDate(recvFeeCommInfoIn.getDepositStartDate());
+            if (actDeposit.getEndCycleId() >= ActingFeePubDef.MAX_CYCLE_ID) {
+                actDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(actDeposit.getEndCycleId()).getCycEndTime());
             } else {
-                accountDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(TimeUtil.genCycle(accountDeposit.getEndCycleId(), 1)).getCycEndTime());
+                actDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(TimeUtil.genCycle(actDeposit.getEndCycleId(), 1)).getCycEndTime());
             }
 
-            accountDeposit.setActionCode(0);
-            accountDeposit.setProvinceCode(account.getProvinceCode());
-            accountDeposit.setEparchyCode(account.getEparchyCode());
-            accountDeposit.setPrivateTag(privateTag);
-            accountDeposit.setVersionNo(1); // 更新版本号
-            accountDeposit.setNewFlag('1'); // 新增标志
-            accountDeposit.setValidTag('0');
+            actDeposit.setActionCode(0);
+            actDeposit.setProvinceCode(feeAccount.getProvinceCode());
+            actDeposit.setEparchyCode(feeAccount.getEparchyCode());
+            actDeposit.setPrivateTag(privateTag);
+            actDeposit.setVersionNo(1); // 更新版本号
+            actDeposit.setNewFlag('1'); // 新增标志
+            actDeposit.setValidTag('0');
         } else {
-            accountDeposit.setRecvFee(accountDeposit.getRecvFee() + tradeCommInfoIn.getTradeFee());
-            accountDeposit.setIfInAccesslog('1');
+            actDeposit.setRecvFee(actDeposit.getRecvFee() + recvFeeCommInfoIn.getTradeFee());
+            actDeposit.setIfInAccesslog('1');
         }
 
         //可作为发票金额
         if ('2' != writeOffRuleInfo.depositTypeCode(depositCode)
                 && '3' != writeOffRuleInfo.depositTypeCode(depositCode)) {
-            if ("2".equals(tradeCommInfoIn.getInvoiceTag())) {
-                accountDeposit.setInvoiceFee(accountDeposit.getInvoiceFee() + tradeCommInfoIn.getInvoiceFee());
+            if ("2".equals(recvFeeCommInfoIn.getInvoiceTag())) {
+                actDeposit.setInvoiceFee(actDeposit.getInvoiceFee() + recvFeeCommInfoIn.getInvoiceFee());
             } else {
-                accountDeposit.setInvoiceFee(accountDeposit.getInvoiceFee() + tradeCommInfoIn.getTradeFee());
+                actDeposit.setInvoiceFee(actDeposit.getInvoiceFee() + recvFeeCommInfoIn.getTradeFee());
             }
-            tradeCommInfo.setInvoiceFee(accountDeposit.getAcctBalanceId(), accountDeposit.getInvoiceFee());
+            tradeCommInfo.setInvoiceFee(actDeposit.getAcctBalanceId(), actDeposit.getInvoiceFee());
 
         }
-        return accountDeposit;
+        return actDeposit;
     }
 
     @Override
-    public AccountDeposit genAcctDepositByTransFer(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, AccountDeposit transOutDeposit) {
+    public FeeAccountDeposit genAcctDepositByTransFer(TransFeeCommInfoIn transFeeCommInfoIn, TradeCommInfo tradeCommInfo, FeeAccountDeposit transOutDeposit) {
         //转入目标账本
-        int desDepositCode = tradeCommInfoIn.getDepositCode();
+        int desDepositCode = transFeeCommInfoIn.getDepositCode();
         char newPrivateTag = transOutDeposit.getPrivateTag();
         WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
         User mainUser = tradeCommInfo.getMainUser();
@@ -490,7 +491,7 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
         boolean isSharedType = isSharedType(writeOffRuleInfo, mainUser.getUserId());
         CommPara chgDepositPara = getChgDepositPara(writeOffRuleInfo, mainUser.getNetTypeCode(), desDepositCode);
         //转入时融合关系账本公私有属性转换
-        if (100015 == tradeCommInfoIn.getPaymentId() && (isCompType || isSharedType) && chgDepositPara != null) {
+        if (100015 == transFeeCommInfoIn.getPaymentId() && (isCompType || isSharedType) && chgDepositPara != null) {
             if (isCompType) {
                 //组合套餐转换规则
                 if (!StringUtils.isEmpty(chgDepositPara.getParaCode1()) && Integer.parseInt(chgDepositPara.getParaCode1()) > 0) {
@@ -520,19 +521,19 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
             }
         }
 
-        List<AccountDeposit> accountDeposits = tradeCommInfo.getAccountDeposits();
-        List<AccountDeposit> desDeposits = depositService.getAcctDepositsByDepositCode(accountDeposits, desDepositCode);
-        AccountDeposit desAccoutDeposit = new AccountDeposit();
+        List<FeeAccountDeposit> actDeposits = tradeCommInfo.getFeeAccountDeposits();
+        List<FeeAccountDeposit> desDeposits = depositCalcService.getAcctDepositsByDepositCode(actDeposits, desDepositCode);
+        FeeAccountDeposit desAccoutDeposit = new FeeAccountDeposit();
         //是否存在可合并账本
         boolean find = false;
         if (!CollectionUtils.isEmpty(desDeposits)) {
-            for (AccountDeposit deposit : desDeposits) {
+            for (FeeAccountDeposit deposit : desDeposits) {
                 //失效账本不合并
                 if (deposit.getEndCycleId() < writeOffRuleInfo.getCurCycle().getCycleId()) {
                     continue;
                 }
                 //过户转账转兑帐本不合并
-                if ('1' == tradeCommInfoIn.getChgAcctTag() && deposit.getActionCode() > 0) {
+                if ('1' == transFeeCommInfoIn.getChgAcctTag() && deposit.getActionCode() > 0) {
                     continue;
                 }
 
@@ -548,15 +549,15 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
         }
 
         if (!find) {
-            desAccoutDeposit.setProvinceCode(tradeCommInfo.getAccount().getProvinceCode());
-            desAccoutDeposit.setEparchyCode(tradeCommInfo.getAccount().getEparchyCode());
-            desAccoutDeposit.setAcctId(tradeCommInfo.getAccount().getAcctId());
-            desAccoutDeposit.setAcctBalanceId(sysCommOperPayService.getSequence(tradeCommInfoIn.getEparchyCode(),
-                    ActPayPubDef.SEQ_ACCTBALANCE_ID, tradeCommInfoIn.getProvinceCode()));
+            desAccoutDeposit.setProvinceCode(tradeCommInfo.getFeeAccount().getProvinceCode());
+            desAccoutDeposit.setEparchyCode(tradeCommInfo.getFeeAccount().getEparchyCode());
+            desAccoutDeposit.setAcctId(tradeCommInfo.getFeeAccount().getAcctId());
+            desAccoutDeposit.setAcctBalanceId(sysCommOperPayService.getSequence(transFeeCommInfoIn.getEparchyCode(),
+                    ActingFeePubDef.SEQ_ACCTBALANCE_ID, transFeeCommInfoIn.getProvinceCode()));
             desAccoutDeposit.setUserId(mainUser.getUserId());
             desAccoutDeposit.setDepositCode(desDepositCode);
-            desAccoutDeposit.setRecvFee(tradeCommInfoIn.getTradeFee());
-            desAccoutDeposit.setInitMoney(tradeCommInfoIn.getTradeFee());
+            desAccoutDeposit.setRecvFee(transFeeCommInfoIn.getTradeFee());
+            desAccoutDeposit.setInitMoney(transFeeCommInfoIn.getTradeFee());
             desAccoutDeposit.setActionCode(transOutDeposit.getActionCode());
             if (!CollectionUtils.isEmpty(tradeCommInfo.getInvoiceFeeMap())) {
                 if (tradeCommInfo.getInvoiceFeeMap().containsKey(transOutDeposit.getAcctBalanceId())) {
@@ -569,31 +570,31 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
                 }
             }
 
-            if (StringUtils.isEmpty(tradeCommInfoIn.getDepositStartDate())) {
-                tradeCommInfoIn.setDepositStartDate(writeOffRuleInfo.getSysdate());
+            if (StringUtils.isEmpty(transFeeCommInfoIn.getDepositStartDate())) {
+                transFeeCommInfoIn.setDepositStartDate(writeOffRuleInfo.getSysdate());
             } else {
-                if (tradeCommInfoIn.getDepositStartDate().length() < 10
-                        || !"-".equals(tradeCommInfoIn.getDepositStartDate().substring(4, 5))
-                        || !"-".equals(tradeCommInfoIn.getDepositStartDate().substring(7, 8))) {
-                    throw new SkyArkException("帐本生效时间不合法!必须为YYYY-MM-DD HH24:MI:SS格式,传入的账本生效时间为" + tradeCommInfoIn.getDepositStartDate());
+                if (transFeeCommInfoIn.getDepositStartDate().length() < 10
+                        || !"-".equals(transFeeCommInfoIn.getDepositStartDate().substring(4, 5))
+                        || !"-".equals(transFeeCommInfoIn.getDepositStartDate().substring(7, 8))) {
+                    throw new SkyArkException("帐本生效时间不合法!必须为YYYY-MM-DD HH24:MI:SS格式,传入的账本生效时间为" + transFeeCommInfoIn.getDepositStartDate());
                 }
             }
 
-            desAccoutDeposit.setLimitMoney(tradeCommInfoIn.getLimitMoney());
-            desAccoutDeposit.setLimitMode(StringUtil.firstOfString(tradeCommInfoIn.getLimitMode()));
+            desAccoutDeposit.setLimitMoney(transFeeCommInfoIn.getLimitMoney());
+            desAccoutDeposit.setLimitMode(StringUtil.firstOfString(transFeeCommInfoIn.getLimitMode()));
 
-            if (tradeCommInfoIn.getMonths() == ActPayPubDef.MAX_MONTH_NUM ||
-                    tradeCommInfoIn.getMonths() <= 0) {
-                desAccoutDeposit.setStartCycleId(ActPayPubDef.MIN_CYCLE_ID);
-                desAccoutDeposit.setEndCycleId(ActPayPubDef.MAX_CYCLE_ID);
+            if (transFeeCommInfoIn.getMonths() == ActingFeePubDef.MAX_MONTH_NUM ||
+                    transFeeCommInfoIn.getMonths() <= 0) {
+                desAccoutDeposit.setStartCycleId(ActingFeePubDef.MIN_CYCLE_ID);
+                desAccoutDeposit.setEndCycleId(ActingFeePubDef.MAX_CYCLE_ID);
             } else {
                 desAccoutDeposit.setStartCycleId(Integer.parseInt(
-                        tradeCommInfoIn.getDepositStartDate().substring(0, 4)
-                                + tradeCommInfoIn.getDepositStartDate().substring(5, 7)));
-                desAccoutDeposit.setEndCycleId(TimeUtil.genCycle(desAccoutDeposit.getStartCycleId(), tradeCommInfoIn.getMonths() - 1));
+                        transFeeCommInfoIn.getDepositStartDate().substring(0, 4)
+                                + transFeeCommInfoIn.getDepositStartDate().substring(5, 7)));
+                desAccoutDeposit.setEndCycleId(TimeUtil.genCycle(desAccoutDeposit.getStartCycleId(), transFeeCommInfoIn.getMonths() - 1));
             }
-            desAccoutDeposit.setStartDate(tradeCommInfoIn.getDepositStartDate());
-            if (desAccoutDeposit.getEndCycleId() < ActPayPubDef.MAX_CYCLE_ID) {
+            desAccoutDeposit.setStartDate(transFeeCommInfoIn.getDepositStartDate());
+            if (desAccoutDeposit.getEndCycleId() < ActingFeePubDef.MAX_CYCLE_ID) {
                 desAccoutDeposit.setEndDate(WriteOffRuleStaticInfo.getCycle(
                         TimeUtil.genCycle(desAccoutDeposit.getStartCycleId(), 1)).getCycStartTime());
             } else {
@@ -602,14 +603,14 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
             }
 
             //转帐转入
-            if (100015 == tradeCommInfoIn.getPaymentId()) {
+            if (100015 == transFeeCommInfoIn.getPaymentId()) {
                 desAccoutDeposit.setPrivateTag(newPrivateTag);
                 if ('0' == desAccoutDeposit.getPrivateTag()) {
-                    desAccoutDeposit.setUserId(tradeCommInfoIn.getUserId());
+                    desAccoutDeposit.setUserId(transFeeCommInfoIn.getUserId());
                 } else {
                     //当前台余额转账时 如果转出为私有账本 目标账本的user_id为目标user_id
-                    if ("1".equals(tradeCommInfoIn.getTransTag())) {
-                        desAccoutDeposit.setUserId(tradeCommInfoIn.getUserId());
+                    if ("1".equals(transFeeCommInfoIn.getTransTag())) {
+                        desAccoutDeposit.setUserId(transFeeCommInfoIn.getUserId());
                     } else {
                         desAccoutDeposit.setUserId(transOutDeposit.getUserId());
                     }
@@ -626,7 +627,7 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
             desAccoutDeposit.setValidTag('0');
         } else {
             //设置转入金额和发票可打金额
-            desAccoutDeposit.setRecvFee(desAccoutDeposit.getRecvFee() + tradeCommInfoIn.getTradeFee());
+            desAccoutDeposit.setRecvFee(desAccoutDeposit.getRecvFee() + transFeeCommInfoIn.getTradeFee());
             if (!CollectionUtils.isEmpty(tradeCommInfo.getInvoiceFeeMap())) {
                 if (tradeCommInfo.getInvoiceFeeMap().containsKey(transOutDeposit.getAcctBalanceId())) {
                     //设置转入账本的可打金额
@@ -642,14 +643,14 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
     }
 
     @Override
-    public void updateAcctDepositOweFee(List<AccountDeposit> accountDeposits, WriteSnapLog writeSnapLog, int maxAcctCycleId) {
+    public void updateAcctDepositOweFee(List<FeeAccountDeposit> actDeposits, FeeWriteSnapLog writeSnapLog, int maxAcctCycleId) {
         //往月欠费
         long acctOweFee = writeSnapLog.getAllNewBOweFee();
         //是否存在私有账本
         boolean hasPrivateDeposit = false;
-        for (AccountDeposit accountDeposit : accountDeposits) {
-            if ('0' == accountDeposit.getPrivateTag()) {
-                acctOweFee = accountDeposit.getOweFee();
+        for (FeeAccountDeposit actDeposit : actDeposits) {
+            if ('0' == actDeposit.getPrivateTag()) {
+                acctOweFee = actDeposit.getOweFee();
             } else {
                 hasPrivateDeposit = true;
             }
@@ -657,23 +658,23 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
 
         //没有私有账本，更新账户所有账本的往月欠费字段
         if (!hasPrivateDeposit) {
-            for (AccountDeposit deposit : accountDeposits) {
+            for (FeeAccountDeposit deposit : actDeposits) {
                 deposit.setOpenCycleId(maxAcctCycleId);
                 deposit.setOweFee(acctOweFee);
             }
         } else {
-            for (AccountDeposit deposit : accountDeposits) {
+            for (FeeAccountDeposit deposit : actDeposits) {
                 deposit.setOpenCycleId(maxAcctCycleId);
             }
         }
     }
 
     @Override
-    public void updateAcctDepositInfo(List<AccountDeposit> accountDeposits, WriteOffRuleInfo writeOffRuleInfo, String provinceCode) {
-        if (CollectionUtils.isEmpty(accountDeposits)) {
+    public void updateAcctDepositInfo(List<FeeAccountDeposit> actDeposits, WriteOffRuleInfo writeOffRuleInfo, String provinceCode) {
+        if (CollectionUtils.isEmpty(actDeposits)) {
             throw new SkyArkException("没有获取本次缴费对应的账本记录");
         }
-        for (AccountDeposit deposit : accountDeposits) {
+        for (FeeAccountDeposit deposit : actDeposits) {
             long currUseMoney = deposit.getImpFee() + deposit.getUseRecvFee() - deposit.getImpRealFee();
             deposit.setDepositMoney(deposit.getDepositMoney() + deposit.getRecvFee());
             deposit.setUpdateTime(writeOffRuleInfo.getSysdate());
@@ -687,13 +688,13 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
     }
 
     @Override
-    public void updateDepositInfo(List<AccountDeposit> accountDeposits, long acctOweFee, String sysdate, int maxAcctCycleId) {
-        if (CollectionUtils.isEmpty(accountDeposits)) {
+    public void updateDepositInfo(List<FeeAccountDeposit> actDeposits, long acctOweFee, String sysdate, int maxAcctCycleId) {
+        if (CollectionUtils.isEmpty(actDeposits)) {
             throw new SkyArkException("没有获取本次缴费对应的账本记录");
         }
 
         //先更新账本余额
-        for (AccountDeposit deposit : accountDeposits) {
+        for (FeeAccountDeposit deposit : actDeposits) {
             long currUseMoney = deposit.getImpFee() + deposit.getUseRecvFee() - deposit.getImpRealFee();
             deposit.setDepositMoney(deposit.getDepositMoney() + deposit.getRecvFee());
             deposit.setUpdateTime(sysdate);
@@ -707,9 +708,9 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
 
         //是否存在私有账本
         boolean hasPrivateDeposit = false;
-        for (AccountDeposit accountDeposit : accountDeposits) {
-            if ('0' == accountDeposit.getPrivateTag()) {
-                acctOweFee = accountDeposit.getOweFee();
+        for (FeeAccountDeposit actDeposit : actDeposits) {
+            if ('0' == actDeposit.getPrivateTag()) {
+                acctOweFee = actDeposit.getOweFee();
             } else {
                 hasPrivateDeposit = true;
             }
@@ -717,12 +718,12 @@ public class AcctDepositPayServiceImpl implements AcctDepositPayService {
 
         //没有私有账本，更新账户所有账本的往月欠费字段
         if (!hasPrivateDeposit) {
-            for (AccountDeposit deposit : accountDeposits) {
+            for (FeeAccountDeposit deposit : actDeposits) {
                 deposit.setOpenCycleId(maxAcctCycleId);
                 deposit.setOweFee(acctOweFee);
             }
         } else {
-            for (AccountDeposit deposit : accountDeposits) {
+            for (FeeAccountDeposit deposit : actDeposits) {
                 deposit.setOpenCycleId(maxAcctCycleId);
             }
         }

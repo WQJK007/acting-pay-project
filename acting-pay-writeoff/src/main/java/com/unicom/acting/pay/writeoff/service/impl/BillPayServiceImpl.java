@@ -1,11 +1,12 @@
 package com.unicom.acting.pay.writeoff.service.impl;
 
+import com.unicom.acting.fee.domain.FeeBill;
+import com.unicom.acting.fee.domain.FeePayLog;
+import com.unicom.acting.pay.dao.BillDao;
+import com.unicom.acting.pay.domain.Bill;
 import com.unicom.skyark.component.exception.SkyArkException;
 import com.unicom.skyark.component.util.StringUtil;
-import com.unicom.acting.fee.domain.Bill;
-import com.unicom.acting.fee.domain.PayLog;
 import com.unicom.acting.fee.writeoff.service.SysCommOperFeeService;
-import com.unicom.acting.pay.dao.BillPayDao;
 import com.unicom.acting.pay.writeoff.service.BillPayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ import java.util.List;
 public class BillPayServiceImpl implements BillPayService {
     private Logger logger = LoggerFactory.getLogger(BillPayServiceImpl.class);
     @Autowired
-    private BillPayDao billPayDao;
+    private BillDao billPayDao;
     @Autowired
     private SysCommOperFeeService sysCommOperPayService;
 
@@ -45,13 +46,13 @@ public class BillPayServiceImpl implements BillPayService {
     }
 
     @Override
-    public void updateBillInfo(List<Bill> bills, PayLog payLog, boolean hasBadBill) {
+    public void updateBillInfo(List<FeeBill> bills, FeePayLog payLog, boolean hasBadBill) {
         if (CollectionUtils.isEmpty(bills)) {
             return;
         }
         //用于更新账单信息
         Bill tmpBill = new Bill();
-        for (Bill bill : bills) {
+        for (FeeBill bill : bills) {
             if (bill.getCanpayTag() != '2'
                     && (bill.getCurrWriteOffBalance() != 0 || bill.getCurrWriteOffLate() != 0
                     || bill.getPayTag() != bill.getOldPayTag()

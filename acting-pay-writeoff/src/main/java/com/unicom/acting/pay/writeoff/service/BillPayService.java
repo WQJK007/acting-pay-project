@@ -1,8 +1,9 @@
 package com.unicom.acting.pay.writeoff.service;
 
+import com.unicom.acting.fee.domain.FeeBill;
+import com.unicom.acting.fee.domain.FeePayLog;
+import com.unicom.acting.pay.domain.Bill;
 import com.unicom.skyark.component.service.IBaseService;
-import com.unicom.acting.fee.domain.Bill;
-import com.unicom.acting.fee.domain.PayLog;
 
 import java.util.List;
 
@@ -45,5 +46,5 @@ public interface BillPayService extends IBaseService {
      * @param payLog
      * @param hasBadBill
      */
-    void updateBillInfo(List<Bill> bills, PayLog payLog, boolean hasBadBill);
+    void updateBillInfo(List<FeeBill> bills, FeePayLog payLog, boolean hasBadBill);
 }

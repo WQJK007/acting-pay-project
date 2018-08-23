@@ -1,10 +1,11 @@
 package com.unicom.acting.pay.recvfee.job;
 
-import com.unicom.acting.fee.domain.ActPayPubDef;
 import com.unicom.acting.fee.domain.PubCommParaDef;
 import com.unicom.acting.fee.writeoff.service.CommParaFeeService;
-import com.unicom.acting.fee.writeoff.service.WriteOffRuleFeeService;
-import com.unicom.acting.pay.writeoff.service.SmsPayService;
+import com.unicom.acting.fee.writeoff.service.WriteOffRuleService;
+import com.unicom.acting.pay.domain.ActPayPubDef;
+import com.unicom.acting.pay.writeoff.service.SmsService;
+import com.unicom.skyark.component.jdbc.DbTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,9 +29,9 @@ public class LoadParamsByJob {
     @Autowired
     private CommParaFeeService commParaService;
     @Autowired
-    private WriteOffRuleFeeService writeOffRuleService;
+    private WriteOffRuleService writeOffRuleService;
     @Autowired
-    private SmsPayService smsService;
+    private SmsService smsService;
 
     /**
      * 缴费销账相关参数每5分钟查询一次时间戳实现自动加载
@@ -40,14 +41,14 @@ public class LoadParamsByJob {
     private void initParam() {
         //获取系统当前时间戳
         String currTimeStamp = commParaService.getParamTimeStamp(
-                PubCommParaDef.ASM_PARAM_TIMESTAMP, ActPayPubDef.ACT_RDS_DBCONN);
+                PubCommParaDef.ASM_PARAM_TIMESTAMP, DbTypes.ACT_PARA_RDS);
         logger.info("timeStamp = " + timeStamp + ",currTimeStamp = " + currTimeStamp);
         if ("".equals(timeStamp) || !currTimeStamp.equals(timeStamp)) {
             long startTime = System.currentTimeMillis();   //获取开始时间
             //加载缴费销账相关参数
-            writeOffRuleService.loadWriteOffParam(ActPayPubDef.ACT_RDS_DBCONN);
+            writeOffRuleService.loadWriteOffParam(DbTypes.ACT_PARA_RDS);
             //加载短信相关参数
-            smsService.loadSmsParam(ActPayPubDef.ACT_RDS_DBCONN);
+            smsService.loadSmsParam(DbTypes.ACT_PARA_RDS);
 
             if ("".equals(timeStamp) && "".equals(currTimeStamp)) {
                 timeStamp = "1900-01-01 01:01:01";

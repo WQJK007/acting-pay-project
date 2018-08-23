@@ -1,11 +1,11 @@
 package com.unicom.acting.pay.writeoff.service;
 
-import com.unicom.acting.fee.calc.domain.TradeCommInfo;
-import com.unicom.acting.fee.domain.TradeCommInfoIn;
-import com.unicom.acting.fee.domain.WriteOffRuleInfo;
-import com.unicom.acting.fee.domain.WriteSnapLog;
+import com.unicom.acting.fee.domain.*;
+import com.unicom.acting.fee.domain.FeeAccountDeposit;
+import com.unicom.acting.fee.writeoff.domain.TradeCommInfoIn;
 import com.unicom.acting.pay.domain.DepositMQInfo;
-import com.unicom.acts.pay.domain.AccountDeposit;
+import com.unicom.acting.pay.writeoff.domain.RecvFeeCommInfoIn;
+import com.unicom.acting.pay.writeoff.domain.TransFeeCommInfoIn;
 import com.unicom.skyark.component.service.IBaseService;
 
 import java.util.List;
@@ -20,52 +20,52 @@ public interface AcctDepositPayService extends IBaseService {
     /**
      * 根据账本信息生成DepositMQ对象信息
      *
-     * @param accountDepositList
+     * @param feeAccountDeposits
      * @return
      */
-    List<DepositMQInfo> genDepositMQInfo(List<AccountDeposit> accountDepositList);
+    List<DepositMQInfo> genDepositMQInfo(List<FeeAccountDeposit> feeAccountDeposits);
 
 
     /**
      * 根据交易信息生成账本
      *
-     * @param tradeCommInfoIn
+     * @param recvFeeCommInfoIn
      * @param tradeCommInfo
      * @return
      */
-    AccountDeposit genAcctDeposit(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo);
+    FeeAccountDeposit genAcctDeposit(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo);
 
     /**
      * 根据账本类型生成账本
      *
-     * @param tradeCommInfoIn
+     * @param recvFeeCommInfoIn
      * @param tradeCommInfo
      * @param depositCode
      * @return
      */
-    AccountDeposit genAcctDepositByDepositCode(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, int depositCode);
+    FeeAccountDeposit genAcctDepositByDepositCode(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo, int depositCode);
 
 
-    AccountDeposit genAcctDepositByTransFer(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, AccountDeposit transOutDeposit);
+    FeeAccountDeposit genAcctDepositByTransFer(TransFeeCommInfoIn transFeeCommInfoIn, TradeCommInfo tradeCommInfo, FeeAccountDeposit transOutDeposit);
 
     /**
      * 更新账本表往月欠费和开张账期
      *
-     * @param accountDeposits
+     * @param feeAccountDeposits
      * @param writeSnapLog
      * @param maxAcctCycleId
      */
-    void updateAcctDepositOweFee(List<AccountDeposit> accountDeposits, WriteSnapLog writeSnapLog, int maxAcctCycleId);
+    void updateAcctDepositOweFee(List<FeeAccountDeposit> feeAccountDeposits, FeeWriteSnapLog writeSnapLog, int maxAcctCycleId);
 
     /**
      * 缴费后更新账本信息
      *
-     * @param accountDeposits
+     * @param feeAccountDeposits
      * @param writeOffRuleInfo
      * @param provinceCode
      */
-    void updateAcctDepositInfo(List<AccountDeposit> accountDeposits, WriteOffRuleInfo writeOffRuleInfo, String provinceCode);
+    void updateAcctDepositInfo(List<FeeAccountDeposit> feeAccountDeposits, WriteOffRuleInfo writeOffRuleInfo, String provinceCode);
 
-    void updateDepositInfo(List<AccountDeposit> accountDeposits, long acctOweFee, String sysdate, int maxAcctCycleId);
+    void updateDepositInfo(List<FeeAccountDeposit> feeAccountDeposits, long acctOweFee, String sysdate, int maxAcctCycleId);
 
 }

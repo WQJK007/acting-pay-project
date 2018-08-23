@@ -14,4 +14,22 @@
     <name>acting-pay-dao</name>
     <description>cBSS系统账务中心交易类业务公共dao组件</description>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.unicom.skyark.component</groupId>
+            <artifactId>skyark-component-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.skyark.component</groupId>
+            <artifactId>skyark-component-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.acting.pay</groupId>
+            <artifactId>acting-pay-domain</artifactId>
+        </dependency>
+    </dependencies>
 </project>
