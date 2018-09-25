@@ -1,6 +1,7 @@
 package com.unicom.acting.pay.dao.impl;
 
 import com.unicom.acting.pay.dao.UserOtherInfoDao;
+import com.unicom.skyark.component.jdbc.DbTypes;
 import com.unicom.skyark.component.jdbc.dao.impl.JdbcBaseDao;
 import org.springframework.stereotype.Repository;
 
@@ -15,13 +16,13 @@ import java.util.Map;
 @Repository
 public class UserOtherInfoDaoImpl extends JdbcBaseDao implements UserOtherInfoDao {
     @Override
-    public long updateBadBillUserInfo(String acctId, String actTag, String provinceCode) {
+    public long updateBadBillUserInfo(String acctId, String actTag) {
         StringBuilder sql = new StringBuilder();
         sql.append("UPDATE TF_F_BADBILL_USERINFO SET ACT_TAG = :VACT_TAG ");
         sql.append("WHERE ACCT_ID = :VACCT_ID");
-        Map<String, String> param = new HashMap<>();
+        Map<String, String> param = new HashMap(2);
         param.put("VACCT_ID", acctId);
         param.put("VACT_TAG", actTag);
-        return this.getJdbcTemplate(provinceCode).update(sql.toString(), param);
+        return this.getJdbcTemplate(DbTypes.ACTING_DRDS).update(sql.toString(), param);
     }
 }

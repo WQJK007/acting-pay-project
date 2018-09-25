@@ -2,6 +2,7 @@ package com.unicom.acting.pay.dao.impl;
 
 import com.unicom.acting.pay.dao.SmsOrderDao;
 import com.unicom.acting.pay.domain.SmsOrder;
+import com.unicom.skyark.component.jdbc.DbTypes;
 import com.unicom.skyark.component.jdbc.dao.impl.JdbcBaseDao;
 import org.springframework.stereotype.Repository;
 
@@ -13,7 +14,7 @@ import java.util.Map;
 @Repository
 public class SmsOrderDaoImpl extends JdbcBaseDao implements SmsOrderDao {
     @Override
-    public void insertSmsOrder(List<SmsOrder> noticeInfoList, String provinceCode) {
+    public void insertSmsOrder(List<SmsOrder> smsOrders) {
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO TF_B_SMSLOG (SMS_ID,ACCESS_CODE,SEND_TIME_CODE,");
         sql.append("RECV_OBJECT_TYPE,RECV_OBJECT,ACCT_ID,EPARCHY_CODE,PROVINCE_CODE,PRODUCT_ID,");
@@ -25,28 +26,28 @@ public class SmsOrderDaoImpl extends JdbcBaseDao implements SmsOrderDao {
         sql.append("STR_TO_DATE(:VSEND_TIME_START,'%Y-%m-%d %T'),");
         sql.append("STR_TO_DATE(:VEND_TIME,'%Y-%m-%d %T'),");
         sql.append(":VREVIEW_FLAG,:VREMARK)");
-        List params = new ArrayList(noticeInfoList.size());
-        for (SmsOrder noticeInfo : noticeInfoList) {
+        List params = new ArrayList(smsOrders.size());
+        for (SmsOrder smsOrder : smsOrders) {
             Map<String, String> param = new HashMap();
-            param.put("VSMS_ID", noticeInfo.getSmsNoticeId());
-            param.put("VACCESS_CODE", noticeInfo.getAccessCode());
-            param.put("VSEND_TIME_CODE", noticeInfo.getSendTimeCode());
-            param.put("VRECV_OBJECT_TYPE", noticeInfo.getRecvObjectType());
-            param.put("VRECV_OBJECT", noticeInfo.getRecvObject());
-            param.put("VACCT_ID", noticeInfo.getAcctId());
-            param.put("VEPARCHY_CODE", noticeInfo.getEparchyCode());
-            param.put("VPROVINCE_CODE", noticeInfo.getProvinceCode());
-            param.put("VPRODUCT_ID", noticeInfo.getProductId());
-            param.put("VNOTICE_CONTENT", noticeInfo.getNoticeContent());
-            param.put("VTEMPLET_ID", noticeInfo.getTempletId());
-            param.put("VGENERATE_TIME", noticeInfo.getGenerateTime());
-            param.put("VSEND_TIME_START", noticeInfo.getSendTimeStart());
-            param.put("VEND_TIME", noticeInfo.getEndTime());
-            param.put("VREVIEW_FLAG", noticeInfo.getReviewFlag());
-            param.put("VREMARK", noticeInfo.getRemark());
+            param.put("VSMS_ID", smsOrder.getSmsNoticeId());
+            param.put("VACCESS_CODE", smsOrder.getAccessCode());
+            param.put("VSEND_TIME_CODE", smsOrder.getSendTimeCode());
+            param.put("VRECV_OBJECT_TYPE", smsOrder.getRecvObjectType());
+            param.put("VRECV_OBJECT", smsOrder.getRecvObject());
+            param.put("VACCT_ID", smsOrder.getAcctId());
+            param.put("VEPARCHY_CODE", smsOrder.getEparchyCode());
+            param.put("VPROVINCE_CODE", smsOrder.getProvinceCode());
+            param.put("VPRODUCT_ID", smsOrder.getProductId());
+            param.put("VNOTICE_CONTENT", smsOrder.getNoticeContent());
+            param.put("VTEMPLET_ID", smsOrder.getTempletId());
+            param.put("VGENERATE_TIME", smsOrder.getGenerateTime());
+            param.put("VSEND_TIME_START", smsOrder.getSendTimeStart());
+            param.put("VEND_TIME", smsOrder.getEndTime());
+            param.put("VREVIEW_FLAG", smsOrder.getReviewFlag());
+            param.put("VREMARK", smsOrder.getRemark());
             params.add(param);
         }
-        this.getJdbcTemplate(provinceCode).batchUpdate(sql.toString(),
+        this.getJdbcTemplate(DbTypes.ACTING_DRDS).batchUpdate(sql.toString(),
                 (Map<String, String>[]) params.toArray(new Map[params.size()]));
     }
 }

@@ -2,6 +2,7 @@ package com.unicom.acting.pay.dao.impl;
 
 import com.unicom.acting.pay.dao.TradeChkLogDao;
 import com.unicom.acting.pay.domain.TradeHyLog;
+import com.unicom.skyark.component.jdbc.DbTypes;
 import com.unicom.skyark.component.jdbc.dao.impl.JdbcBaseDao;
 import org.springframework.stereotype.Repository;
 
@@ -11,7 +12,7 @@ import java.util.Map;
 @Repository
 public class TradeChkLogDaoImpl extends JdbcBaseDao implements TradeChkLogDao {
     @Override
-    public int insertTradeHyLog(TradeHyLog tradeHyLog, String provinceCode) {
+    public int insertTradeHyLog(TradeHyLog tradeHyLog) {
         StringBuilder sql = new StringBuilder();
         sql.append("INSERT INTO TL_B_TRADELOG_HY (PROVINCE_CODE,EPARCHY_CODE,OPER_ID,");
         sql.append("CHANNEL_CODE,TRADE_ID,SERIAL_NUMBER,OUTER_TRADE_TIME,CHANNEL_ID,");
@@ -36,6 +37,6 @@ public class TradeChkLogDaoImpl extends JdbcBaseDao implements TradeChkLogDao {
         param.put("VCHARGE_ID", tradeHyLog.getChargerId());
         param.put("VNET_TYPE_CODE", tradeHyLog.getNetTypeCode());
         param.put("VCITY_CODE", tradeHyLog.getCityCode());
-        return this.getJdbcTemplate(provinceCode).update(sql.toString(), param);
+        return this.getJdbcTemplate(DbTypes.ACTING_DRDS).update(sql.toString(), param);
     }
 }

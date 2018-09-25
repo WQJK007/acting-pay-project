@@ -12,6 +12,24 @@ import java.util.List;
  */
 public class TransFeeCommInfoIn extends TradeCommInfoIn {
     /**
+     * @see #transFeeType 余额转账类型
+     * 0 同账户余额转账 1 不同账户余额转账
+     */
+    private char transFeeType;
+    /**
+     * @see #desAcctId 转出账户标识
+     */
+    private String desAcctId;
+    /**
+     * @see #desUserId 转出用户标识
+     */
+    private String desUserId;
+    /**
+     * @see #OutDepositCode 转出账本科目
+     */
+    private int OutDepositCode;
+
+    /**
      * @see #transTag 前台转账标识
      * 1 目标账本如果为私有，账本的用户标识是转入用户的
      */
@@ -44,6 +62,38 @@ public class TransFeeCommInfoIn extends TradeCommInfoIn {
 
     public TransFeeCommInfoIn() {
         chgAcctTag = '0';
+    }
+
+    public char getTransFeeType() {
+        return transFeeType;
+    }
+
+    public void setTransFeeType(char transFeeType) {
+        this.transFeeType = transFeeType;
+    }
+
+    public String getDesAcctId() {
+        return desAcctId;
+    }
+
+    public void setDesAcctId(String desAcctId) {
+        this.desAcctId = desAcctId;
+    }
+
+    public String getDesUserId() {
+        return desUserId;
+    }
+
+    public void setDesUserId(String desUserId) {
+        this.desUserId = desUserId;
+    }
+
+    public int getOutDepositCode() {
+        return OutDepositCode;
+    }
+
+    public void setOutDepositCode(int outDepositCode) {
+        OutDepositCode = outDepositCode;
     }
 
     public String getTransTag() {
@@ -84,5 +134,20 @@ public class TransFeeCommInfoIn extends TradeCommInfoIn {
 
     public void setTradeDepositInfos(List<TradeDepositInfo> tradeDepositInfos) {
         this.tradeDepositInfos = tradeDepositInfos;
+    }
+
+    @Override
+    public String toString() {
+        return "TransFeeCommInfoIn{" +
+                "transFeeType=" + transFeeType +
+                ", desAcctId='" + desAcctId + '\'' +
+                ", desUserId='" + desUserId + '\'' +
+                ", OutDepositCode=" + OutDepositCode +
+                ", transTag='" + transTag + '\'' +
+                ", chgAcctTag=" + chgAcctTag +
+                ", decuctOwefeeTag=" + decuctOwefeeTag +
+                ", transOutDedposits=" + transOutDedposits +
+                ", tradeDepositInfos=" + tradeDepositInfos +
+                '}';
     }
 }

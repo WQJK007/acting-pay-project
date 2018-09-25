@@ -13,9 +13,8 @@ public interface TradeChkLogDao extends IBaseDao {
      * 新增外围交易对账日志
      *
      * @param tradeHyLog
-     * @param provinceCode
      * @return
      */
-    int insertTradeHyLog(TradeHyLog tradeHyLog, String provinceCode);
+    int insertTradeHyLog(TradeHyLog tradeHyLog);
 
 }

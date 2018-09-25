@@ -16,8 +16,7 @@ public interface SmsOrderDao extends IBaseDao {
     /**
      * 短信入库
      *
-     * @param noticeInfoList
-     * @param provinceCode
+     * @param smsOrders
      */
-    void insertSmsOrder(List<SmsOrder> noticeInfoList, String provinceCode);
+    void insertSmsOrder(List<SmsOrder> smsOrders);
 }

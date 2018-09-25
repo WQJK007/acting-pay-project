@@ -60,6 +60,12 @@ public class RecvFeeCommInfoIn extends TradeCommInfoIn {
      */
     private String tradeHyLogFlag;
 
+    /**
+     * 涉及外围交易对账
+     */
+    private boolean tradeCheckFlag;
+
+
     public CarrierInfo getCarrierInfo() {
         return carrierInfo;
     }
@@ -146,5 +152,13 @@ public class RecvFeeCommInfoIn extends TradeCommInfoIn {
 
     public void setTradeHyLogFlag(String tradeHyLogFlag) {
         this.tradeHyLogFlag = tradeHyLogFlag;
+    }
+
+    public boolean isTradeCheckFlag() {
+        return tradeCheckFlag;
+    }
+
+    public void setTradeCheckFlag(boolean tradeCheckFlag) {
+        this.tradeCheckFlag = tradeCheckFlag;
     }
 }

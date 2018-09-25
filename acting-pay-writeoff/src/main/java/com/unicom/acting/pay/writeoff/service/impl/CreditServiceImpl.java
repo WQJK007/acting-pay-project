@@ -1,5 +1,6 @@
 package com.unicom.acting.pay.writeoff.service.impl;
 
+import com.unicom.acting.common.domain.Account;
 import com.unicom.acting.fee.domain.*;
 import com.unicom.acting.fee.writeoff.domain.TradeCommInfoIn;
 import com.unicom.acting.pay.domain.*;
@@ -31,7 +32,7 @@ public class CreditServiceImpl implements CreditService {
     public void genCreditInfo(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, TradeCommResultInfo tradeCommResultInfo) {
         logger.info("genCreditInfo fun begin");
         //不触发信控直接返回
-        if (!ifFireCreditCtrl(tradeCommInfo.getFeePayLog().getPaymentId(),
+        if (!ifFireCreditCtrl(tradeCommResultInfo.getPayLog().getPaymentId(),
                 tradeCommInfo.getMainUser().getOpenMode(),
                 tradeCommInfoIn.getRemoveTag())) {
             return;
@@ -39,13 +40,13 @@ public class CreditServiceImpl implements CreditService {
 
         //触发信控类型
         String fireCreditCtrlType = getFireCreditCtrlType(tradeCommInfoIn.getProvinceCode(),
-                tradeCommInfo.getFeeAccount().getAcctId(),
+                tradeCommInfo.getAccount().getAcctId(),
                 tradeCommInfo.getWriteOffRuleInfo());
         logger.info("fireCreditCtrlType = " + fireCreditCtrlType);
 
-        if (ActPayPubDef.JIAOFEI_TO_CREDIT.equals(fireCreditCtrlType)) {
+        if (ActingPayPubDef.JIAOFEI_TO_CREDIT.equals(fireCreditCtrlType)) {
             genJFCreditMQInfo(tradeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
-        } else if (ActPayPubDef.RECV_TO_CREDIT.equals(fireCreditCtrlType)) {
+        } else if (ActingPayPubDef.RECV_TO_CREDIT.equals(fireCreditCtrlType)) {
             genRecvCreditMQInfo(tradeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
         }
     }
@@ -80,14 +81,14 @@ public class CreditServiceImpl implements CreditService {
      * @return
      */
     private String getFireCreditCtrlType(String provinceCode, String acctId, WriteOffRuleInfo writeOffRuleInfo) {
-        if (payDatumService.isSpecialRecvState(writeOffRuleInfo.getCurCycle())) {
-            return ActPayPubDef.JIAOFEI_TO_CREDIT;
+        if (writeOffRuleInfo.isSpecialRecvState(writeOffRuleInfo.getCurCycle())) {
+            return ActingPayPubDef.JIAOFEI_TO_CREDIT;
         } else {
-            CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.FIRE_CREDIT_MODE);
+            CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.FIRE_CREDIT_MODE);
             if (commPara != null && "1".equals(commPara.getParaCode1())) {
-                return ActPayPubDef.RECV_TO_CREDIT;
+                return ActingPayPubDef.RECV_TO_CREDIT;
             }
-            return ActPayPubDef.JIAOFEI_TO_CREDIT;
+            return ActingPayPubDef.JIAOFEI_TO_CREDIT;
         }
     }
 
@@ -99,31 +100,29 @@ public class CreditServiceImpl implements CreditService {
      * @return
      */
     private void genJFCreditMQInfo(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, TradeCommResultInfo tradeCommResultInfo) {
-        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
+        Account account = tradeCommInfo.getAccount();
         String provinceCode = tradeCommInfoIn.getProvinceCode();
         Staff staff = tradeCommInfo.getTradeStaff();
         String tradeStaffId = staff.getStaffId();
         WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
         //是否大合帐账户
         boolean isBigAcct = payDatumService.ifBigAcctForFireCreditCtrl(tradeStaffId,
-                feeAccount.getAcctId(), provinceCode, writeOffRuleInfo);
+                account.getAcctId(), provinceCode, writeOffRuleInfo);
 
         //实时费用
         long curRealFee = tradeCommInfo.getFeeWriteSnapLog().getCurRealFee();
         //缴费流水
-        String chargeId = tradeCommInfo.getFeePayLog().getChargeId();
+        String chargeId = tradeCommResultInfo.getPayLog().getChargeId();
         //默认付费用户结余
-        Map<String, Long> defaultUserBalance = new HashMap<>();
+        Map<String, Long> defaultUserBalance = new HashMap();
         //高级付费用户
-        List<String> otherPayUsers = new ArrayList<>();
+        List<String> otherPayUsers = new ArrayList();
         //用户结余
         Map<String, UserBalance> userBalanceMap = tradeCommInfo.getUserBalance();
         for (Map.Entry<String, UserBalance> it : userBalanceMap.entrySet()) {
             if ('1' == it.getValue().getDefaultPay()) {
-                logger.info("default_user " + it.getKey());
                 defaultUserBalance.put(it.getKey(), it.getValue().getBalance());
             } else {
-                logger.info("other_user " + it.getKey());
                 otherPayUsers.add(it.getKey());
             }
         }
@@ -135,7 +134,7 @@ public class CreditServiceImpl implements CreditService {
 
         //设置信控工单公共信息
         JFCreditMQInfo jfCreditMQInfo = new JFCreditMQInfo();
-        jfCreditMQInfo.setAcctId(feeAccount.getAcctId());
+        jfCreditMQInfo.setAcctId(account.getAcctId());
         jfCreditMQInfo.setProvinceCode(provinceCode);
         jfCreditMQInfo.setTradeId(chargeId);
         jfCreditMQInfo.setRealFee(curRealFee);
@@ -148,10 +147,10 @@ public class CreditServiceImpl implements CreditService {
         jfCreditMQInfo.setRemark("销账触发");
         if (!CollectionUtils.isEmpty(tradeCommInfo.getPayUsers())
                 && tradeCommInfo.getPayUsers().size() > 100) {
-            jfCreditMQInfo.setTradeTypeCode(ActPayPubDef.RECVCREDIT_TRADE_TYPE_BIGACCT);
+            jfCreditMQInfo.setTradeTypeCode(ActingPayPubDef.RECVCREDIT_TRADE_TYPE_BIGACCT);
             jfCreditMQInfo.setBatchTag("1");
         } else {
-            jfCreditMQInfo.setTradeTypeCode(ActPayPubDef.RECVCREDIT_TRADE_TYPE_DEFAULT);
+            jfCreditMQInfo.setTradeTypeCode(ActingPayPubDef.RECVCREDIT_TRADE_TYPE_DEFAULT);
             jfCreditMQInfo.setBatchTag("0");
         }
 
@@ -163,7 +162,7 @@ public class CreditServiceImpl implements CreditService {
 
         //缴费信控工单用户结余信息
         List<JFUserLeaveFeeInfo> jfUserLeaveFeeInfos = new ArrayList(defaultUserBalance.size() + otherPayUsers.size());
-
+        jfCreditMQInfo.setJfUserLeaveFeeInfos(jfUserLeaveFeeInfos);
 
         //用户实时结余信息
         LeaveRealFeeMQInfo leaveRealFeeMQInfo = new LeaveRealFeeMQInfo();
@@ -187,7 +186,8 @@ public class CreditServiceImpl implements CreditService {
             JFUserLeaveFeeInfo jfUserLeaveFeeInfo = new JFUserLeaveFeeInfo();
             jfUserLeaveFeeInfo.setUserId(itr.getKey());
             jfUserLeaveFeeInfo.setLeaveRealFee(itr.getValue());
-            if (tradeCommInfo.getFeePayLog().getCancelTag() == '0') {
+            //返销触发信控可能是单独处理
+            if (tradeCommInfoIn.getCancleTag() == '0') {
                 jfUserLeaveFeeInfo.setProcessTag("0");
             } else {
                 jfUserLeaveFeeInfo.setProcessTag("1");
@@ -220,21 +220,21 @@ public class CreditServiceImpl implements CreditService {
      * @return
      */
     private void genRecvCreditMQInfo(TradeCommInfoIn tradeCommInfoIn, TradeCommInfo tradeCommInfo, TradeCommResultInfo tradeCommResultInfo) {
-        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
+        Account account = tradeCommInfo.getAccount();
         String provinceCode = tradeCommInfoIn.getProvinceCode();
         Staff staff = tradeCommInfo.getTradeStaff();
         String tradeStaffId = staff.getStaffId();
         WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
         //是否大合帐账户
         boolean isBigAcct = payDatumService.ifBigAcctForFireCreditCtrl(tradeStaffId,
-                feeAccount.getAcctId(), provinceCode, writeOffRuleInfo);
+                account.getAcctId(), provinceCode, writeOffRuleInfo);
 
         //缴费流水
-        String chargeId = tradeCommInfo.getFeePayLog().getChargeId();
+        String chargeId = tradeCommResultInfo.getPayLog().getChargeId();
 
         //设置信控工单公共信息
         RecvCreditMQInfo recvCreditMQInfo = new RecvCreditMQInfo();
-        recvCreditMQInfo.setAcctId(feeAccount.getAcctId());
+        recvCreditMQInfo.setAcctId(account.getAcctId());
         recvCreditMQInfo.setUserId(tradeCommInfo.getMainUser().getUserId());
         recvCreditMQInfo.setProvinceCode(provinceCode);
         recvCreditMQInfo.setTradeId(chargeId);

@@ -11,13 +11,6 @@ import com.unicom.acting.fee.domain.WriteOffRuleInfo;
  */
 public interface PayDatumService extends IBaseService {
     /**
-     * 特定缴费期
-     *
-     * @param cycle
-     * @return
-     */
-    boolean isSpecialRecvState(Cycle cycle);
-    /**
      * 省份系统账户标识
      *
      * @param userId
@@ -49,10 +42,9 @@ public interface PayDatumService extends IBaseService {
      *
      * @param acctId
      * @param actTag
-     * @param provinceCode
      * @return
      */
-    long updateBadBillUserInfo(String acctId, String actTag, String provinceCode);
+    long updateBadBillUserInfo(String acctId, String actTag);
 
     /**
      * 是否信控大合帐用户
@@ -65,15 +57,6 @@ public interface PayDatumService extends IBaseService {
      */
     boolean ifBigAcctForFireCreditCtrl(String tradeStaffId, String acctId, String provinceCode,
                                        WriteOffRuleInfo writeOffRuleInfo);
-
-    /**
-     * 是否短信黑名单用户
-     *
-     * @param userId
-     * @param provinceCode
-     * @return
-     */
-    boolean ifSmsBlackList(String userId, String provinceCode);
 
     /**
      * 智慧沃家共享和组合版群主用户

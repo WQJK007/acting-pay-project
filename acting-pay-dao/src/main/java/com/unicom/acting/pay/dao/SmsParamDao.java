@@ -16,26 +16,23 @@ public interface SmsParamDao extends IBaseDao {
     /**
      * 储值方式发送短信模板
      *
-     * @param provinceCode
      * @return
      */
-    List<SmsCond> getProvSmsCond(String provinceCode);
+    List<SmsCond> getProvSmsCond();
 
     /**
      * 短信转换模板
      *
-     * @param provinceCode
      * @return
      */
-    List<SmsConvert> getSmsConvertId(String provinceCode);
+    List<SmsConvert> getSmsConvertId();
 
     /**
      * 短信模板内容
      *
-     * @param provinceCode
      * @return
      */
-    List<SmsTemplet> getSmsTemplet(String provinceCode);
+    List<SmsTemplet> getSmsTemplet();
 
 
 }

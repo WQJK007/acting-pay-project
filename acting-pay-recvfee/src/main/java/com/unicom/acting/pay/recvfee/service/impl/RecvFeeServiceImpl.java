@@ -1,19 +1,20 @@
 package com.unicom.acting.pay.recvfee.service.impl;
 
+import com.unicom.acting.common.domain.Account;
+import com.unicom.acting.common.domain.User;
 import com.unicom.acting.fee.domain.*;
 import com.unicom.acting.fee.domain.FeeAccountDeposit;
 import com.unicom.acting.fee.writeoff.domain.TradeCommInfoOut;
 import com.unicom.acting.fee.writeoff.service.FeeCommService;
 import com.unicom.acting.pay.domain.*;
 import com.unicom.acting.pay.domain.AsynWork;
-import com.unicom.acting.pay.domain.PayOtherLog;
+import com.unicom.acting.pay.recvfee.service.RecvFeeCheckLogService;
+import com.unicom.acting.pay.recvfee.service.RecvFeeOrderService;
 import com.unicom.acting.pay.writeoff.domain.RecvFeeCommInfoIn;
 import com.unicom.acting.pay.writeoff.service.*;
 import com.unicom.skyark.component.exception.SkyArkException;
-import com.unicom.skyark.component.jdbc.DbTypes;
 import com.unicom.skyark.component.util.StringUtil;
 import com.unicom.acting.fee.calc.service.CalculateService;
-import com.unicom.acting.fee.writeoff.service.SysCommOperFeeService;
 import com.unicom.acting.pay.recvfee.service.RecvFeeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,17 +31,19 @@ public class RecvFeeServiceImpl implements RecvFeeService {
     @Autowired
     private FeeCommService feeCommService;
     @Autowired
+    private RecvFeeCommService recvFeeCommService;
+    @Autowired
     private TradeCommService tradeCommService;
     @Autowired
     private TradeAsynOrderService tradeAsynOrderService;
-    @Autowired
-    private TradeCheckLogService tradeCheckLogService;
     @Autowired
     private SmsService smsService;
     @Autowired
     private CreditService creditService;
     @Autowired
-    private SysCommOperFeeService sysCommOperService;
+    private RecvFeeOrderService recvFeeOrderService;
+    @Autowired
+    private RecvFeeCheckLogService recvFeeCheckLogService;
 
 
     @Override
@@ -53,19 +56,21 @@ public class RecvFeeServiceImpl implements RecvFeeService {
         if (!recvFeeCommInfoIn.isBigAcctRecvFee()) {
             return recvFeeSimple(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
         } else {
-            return asynRecvFee(recvFeeCommInfoIn, tradeCommInfo);
+            return asynRecvFee(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
         }
     }
 
     private TradeCommInfoOut recvFeeSimple(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo, TradeCommResultInfo tradeCommResultInfo) {
-        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
+        Account account= tradeCommInfo.getAccount();
         //tradeCommService.genLockAccount(feeAccount.getAcctId(), recvFeeCommInfoIn.getProvinceCode());
+        //获取省份地市销账规则
+        feeCommService.getWriteOffRule(tradeCommInfo.getWriteOffRuleInfo(), account.getProvinceCode(), account.getEparchyCode(), account.getNetTypeCode());
         //查询账本
         feeCommService.getAcctBalance(recvFeeCommInfoIn, tradeCommInfo);
         //查询账单
         feeCommService.getOweBill(recvFeeCommInfoIn, tradeCommInfo);
-        //特殊业务校验
-        feeCommService.specialBusiCheck(recvFeeCommInfoIn, tradeCommInfo);
+        //缴费特殊校验
+        specialRecvFeeCheck(recvFeeCommInfoIn, tradeCommInfo);
         //只有做滞纳金计算才加载滞纳金减免工单和账户自定义缴费期
         if (!feeCommService.ifCalcLateFee(recvFeeCommInfoIn, tradeCommInfo)) {
             //计算滞纳金
@@ -73,92 +78,82 @@ public class RecvFeeServiceImpl implements RecvFeeService {
             //获取滞纳金减免工单
             feeCommService.getFeeDerateLateFeeLog(recvFeeCommInfoIn, tradeCommInfo);
             //获取账户自定义缴费期  DbTypes.ACTS_DRDS
-            feeCommService.getAcctPaymentCycle(tradeCommInfo, feeAccount.getAcctId(), DbTypes.ACTS_DRDS);
+            feeCommService.getAcctPaymentCycle(tradeCommInfo, account.getAcctId());
         }
         logger.info("begin calc");
         //缴费前销账计算
         calculateService.calc(tradeCommInfo);
         //设置缴费金额
-        tradeCommService.setRecvfee(recvFeeCommInfoIn, tradeCommInfo);
+        recvFeeCommService.setRecvfee(recvFeeCommInfoIn, tradeCommInfo);
         logger.info("after setRecvfee");
         //缴费后销账计算
         calculateService.recvCalc(tradeCommInfo);
         //生成缴费入库信息
-        tradeCommService.genInDBInfo(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
+        recvFeeCommService.genRecvDBInfo(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
         //生成短信信息
         smsService.genSmsInfo(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
         //生成信控工单
         creditService.genCreditInfo(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
         //缴费结果整理返回
-        return genTradeCommInfoOut(recvFeeCommInfoIn, tradeCommInfo);
+        return genTradeCommInfoOut(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
     }
 
-
-
-    private TradeCommInfoOut asynRecvFee(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo) {
+    /**
+     * 大合帐缴费异步处理
+     *
+     * @param recvFeeCommInfoIn
+     * @param tradeCommInfo
+     * @param tradeCommResultInfo
+     * @return
+     */
+    private TradeCommInfoOut asynRecvFee(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo, TradeCommResultInfo tradeCommResultInfo) {
         logger.info("生成异步缴费工单开始");
-        addPayFeeWork(recvFeeCommInfoIn, tradeCommInfo);
+        AsynWork asynWork = recvFeeOrderService.genAsynWork(recvFeeCommInfoIn, tradeCommInfo);
         logger.info("生成异步缴费工单结束");
-        //生成外围交易对账日志
-        if ("1".equals(recvFeeCommInfoIn.getTradeHyLogFlag())) {
-            addTradeHyLog(recvFeeCommInfoIn, tradeCommInfo.getTradeStaff(), recvFeeCommInfoIn.getChargeId(), recvFeeCommInfoIn.getProvinceCode());
+
+        if (recvFeeCommInfoIn.isTradeCheckFlag()) {
+            logger.info("外围对账交易工单生成开始");
+            if ("1".equals(recvFeeCommInfoIn.getTradeHyLogFlag())) {
+                TradeHyLog tradeHyLog = recvFeeCheckLogService.genTradeHyLog(recvFeeCommInfoIn,
+                        tradeCommInfo.getTradeStaff(), recvFeeCommInfoIn.getChargeId());
+                tradeCommResultInfo.setTradeHyLog(tradeHyLog);
+            }
             logger.info("外围对账交易工单生成结束");
+            tradeCommResultInfo.setAsynWorkMQInfo(tradeAsynOrderService.genAsynWorkMQInfo(asynWork));
+        } else {
+            tradeCommResultInfo.setAsynWork(asynWork);
         }
         //缴费结果整理返回
-        return genTradeCommInfoOut(recvFeeCommInfoIn, tradeCommInfo);
+        return genTradeCommInfoOut(recvFeeCommInfoIn, tradeCommInfo, tradeCommResultInfo);
     }
 
-    private void addPayFeeWork(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo) {
-        AsynWork asynWork = new AsynWork();
-        WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
-        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
-        User mainUser = tradeCommInfo.getMainUser();
 
-        String tradeId = sysCommOperService.getSequence(feeAccount.getEparchyCode(), ActPayPubDef.SEQ_TRADE_ID, feeAccount.getProvinceCode());
-        String chargeId = "";
-        if (!StringUtil.isEmptyCheckNullStr(recvFeeCommInfoIn.getChargeId())) {
-            chargeId = recvFeeCommInfoIn.getChargeId();
-        } else {
-            chargeId = sysCommOperService.getSequence(feeAccount.getEparchyCode(), ActPayPubDef.SEQ_CHARGE_ID, feeAccount.getProvinceCode());
+    /**
+     * 缴费特殊校验
+     *
+     * @param recvFeeCommInfoIn
+     * @param tradeCommInfo
+     */
+    private void specialRecvFeeCheck(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo) {
+        if (feeCommService.ifBillConsigning(recvFeeCommInfoIn, tradeCommInfo)) {
+            throw new SkyArkException("托收在途不能前台缴费!");
         }
-        recvFeeCommInfoIn.setChargeId(chargeId);
-        asynWork.setWorkId(tradeId);
-        asynWork.setChargeId(chargeId);
-        asynWork.setTradeTime(writeOffRuleInfo.getSysdate());
-        //外围缴费流水
-        asynWork.setRsrvStr1(recvFeeCommInfoIn.getTradeId());
-        asynWork.setRsrvStr3("1");
-        asynWork.setDealTag("0");
-        asynWork.setWorkTypeCode("2");
-        asynWork.setStartCycleId(writeOffRuleInfo.getCurCycle().getCycleId());
-        asynWork.setEndCycleId(writeOffRuleInfo.getCurCycle().getCycleId());
-        asynWork.setTradeStaffId(tradeCommInfo.getTradeStaff().getStaffId());
-        asynWork.setTradeDepartId(tradeCommInfo.getTradeStaff().getDepartId());
-        asynWork.setTradeCityCode(tradeCommInfo.getTradeStaff().getCityCode());
-        asynWork.setTradeEparchyCode(tradeCommInfo.getTradeStaff().getEparchyCode());
-        asynWork.setChannelId(recvFeeCommInfoIn.getChannelId());
-        asynWork.setPaymentId(String.valueOf(recvFeeCommInfoIn.getPaymentId()));
-        asynWork.setPayFeeModeCode(String.valueOf(recvFeeCommInfoIn.getPayFeeModeCode()));
-        asynWork.setPaymentOp("16000");
-        asynWork.setWriteoffMode(recvFeeCommInfoIn.getWriteoffMode());
-        asynWork.setRsrvFee1(String.valueOf(recvFeeCommInfoIn.getTradeFee()));
-        asynWork.setAcctId(feeAccount.getAcctId());
-        asynWork.setUserId(mainUser.getUserId());
-        asynWork.setEparchyCode(feeAccount.getEparchyCode());
-        asynWork.setNetTypeCode(mainUser.getNetTypeCode());
-        asynWork.setSerialNumber(mainUser.getSerialNumber());
-        //自然人
-        if (!StringUtil.isEmptyCheckNullStr(recvFeeCommInfoIn.getNpFlag())) {
-            asynWork.setRsrvStr2(recvFeeCommInfoIn.getNpFlag());
+
+        if (feeCommService.ifConsignPayMode(recvFeeCommInfoIn, tradeCommInfo)) {
+            throw new SkyArkException("托收用户不能前台缴费!");
         }
-        //98卡
-        if (100006 == recvFeeCommInfoIn.getPaymentId()) {
-            asynWork.setRsrvFee8(String.valueOf(recvFeeCommInfoIn.getInvoiceFee()));
+        if (feeCommService.ifPrePrintInvoice(recvFeeCommInfoIn, tradeCommInfo)) {
+            throw new SkyArkException("代理商预打发票只能通过预打回款缴费!");
         }
-        tradeAsynOrderService.insertAsynWork(asynWork, DbTypes.ACT_ORDER_RDS, feeAccount.getProvinceCode());
+
+        //电子券充值用户服务状态校验
+        feeCommService.elecPresentLimit(tradeCommInfo.getMainUser(), recvFeeCommInfoIn.getPaymentId(),
+                tradeCommInfo.getWriteOffRuleInfo());
+
     }
 
-    private TradeCommInfoOut genTradeCommInfoOut(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo) {
+
+    private TradeCommInfoOut genTradeCommInfoOut(RecvFeeCommInfoIn recvFeeCommInfoIn, TradeCommInfo tradeCommInfo, TradeCommResultInfo tradeCommResultInfo) {
         TradeCommInfoOut tradeCommInfoOut = new TradeCommInfoOut();
         //销账规则
         WriteOffRuleInfo writeOffRuleInfo = tradeCommInfo.getWriteOffRuleInfo();
@@ -175,11 +170,11 @@ public class RecvFeeServiceImpl implements RecvFeeService {
         tradeCommInfoOut.setBrandCode(mainUser.getBrandCode());
 
         //设置账户信息
-        FeeAccount feeAccount = tradeCommInfo.getFeeAccount();
-        tradeCommInfoOut.setAcctId(feeAccount.getAcctId());
-        tradeCommInfoOut.setPayName(feeAccount.getPayName());
-        tradeCommInfoOut.setPayModeCode(feeAccount.getPayModeCode());
-        tradeCommInfoOut.setEparchyCode(feeAccount.getEparchyCode());
+        Account account= tradeCommInfo.getAccount();
+        tradeCommInfoOut.setAcctId(account.getAcctId());
+        tradeCommInfoOut.setPayName(account.getPayName());
+        tradeCommInfoOut.setPayModeCode(account.getPayModeCode());
+        tradeCommInfoOut.setEparchyCode(account.getEparchyCode());
         tradeCommInfoOut.setProvinceCode(recvFeeCommInfoIn.getProvinceCode());
 
         // 大合账优化，为防止初期启动时无返回值造成实时接口报错，所以临时把相关字段都赋值为0，并不代表真实值。
@@ -209,7 +204,7 @@ public class RecvFeeServiceImpl implements RecvFeeService {
         }
 
         //缴费日志相关信息
-        FeePayLog payLog = tradeCommInfo.getFeePayLog();
+        PayLog payLog = tradeCommResultInfo.getPayLog();
         //如果是关联缴费需要主记录的流水
         if (!StringUtil.isEmptyCheckNullStr(recvFeeCommInfoIn.getRelChargeId())) {
             tradeCommInfoOut.setChargeId(recvFeeCommInfoIn.getRelChargeId());
@@ -237,7 +232,7 @@ public class RecvFeeServiceImpl implements RecvFeeService {
         tradeCommInfoOut.setAllROweFee(String.valueOf(writeSnapLog.getPreRealFee() + writeSnapLog.getCurRealFee()));
 
         //统一余额播报
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.ASM_SHOW_TYPE);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_SHOW_TYPE);
         if (commPara == null) {
             throw new SkyArkException("没有配置统一余额播报方案参数:ASM_SHOW_TYPE");
         }
@@ -286,40 +281,4 @@ public class RecvFeeServiceImpl implements RecvFeeService {
         }
         return tradeCommInfoOut;
     }
-
-    private void addTradeHyLog(RecvFeeCommInfoIn recvFeeCommInfoIn, Staff staff, String chargeId, String provinceCode) {
-        TradeHyLog tradeHyLog = new TradeHyLog();
-        tradeHyLog.setOperId(staff.getStaffId());
-        tradeHyLog.setChannelCode(staff.getDepartId());
-        tradeHyLog.setEparchyCode(staff.getEparchyCode());
-        tradeHyLog.setCityCode(staff.getCityCode());
-        tradeHyLog.setProvinceCode(staff.getProvinceCode());
-        tradeHyLog.setTradeId(recvFeeCommInfoIn.getTradeId());
-        tradeHyLog.setOuterTradeTime(recvFeeCommInfoIn.getTradeTime());
-        tradeHyLog.setSerialNumber(recvFeeCommInfoIn.getSerialNumber());
-        tradeHyLog.setNetTypeCode(recvFeeCommInfoIn.getNetTypeCode());
-        tradeHyLog.setChannelId(recvFeeCommInfoIn.getChannelId());
-        tradeHyLog.setPaymentId(recvFeeCommInfoIn.getPaymentId());
-        tradeHyLog.setPayFeeModeCode(recvFeeCommInfoIn.getPayFeeModeCode());
-        tradeHyLog.setTradeFee(String.valueOf(recvFeeCommInfoIn.getTradeFee()));
-        tradeHyLog.setChargerId(chargeId);
-        tradeCheckLogService.insertTradeHyLog(tradeHyLog, provinceCode);
-    }
-
-
-    private PayOtherLog genPayOtherLog(CarrierInfo carrierInfo, PayLog payLog) {
-        PayOtherLog payOtherLog = new PayOtherLog();
-        payOtherLog.setChargeId(payLog.getChargeId());
-        payOtherLog.setCancelTag('0');
-        payOtherLog.setEparchyCode(payLog.getEparchyCode());
-        payOtherLog.setProvinceCode(payLog.getProvinceCode());
-        payOtherLog.setCarrierTime(payLog.getRecvTime());
-        payOtherLog.setConfTimeLimit(0);
-        payOtherLog.setCarrierId(carrierInfo.getCarrierId());
-        payOtherLog.setCarrierCode(String.valueOf(carrierInfo.getCarrierCode()));
-        payOtherLog.setBankCode(carrierInfo.getBankCode());
-        payOtherLog.setCarrierUseName(carrierInfo.getCarrierUseName());
-        return payOtherLog;
-    }
-
 }

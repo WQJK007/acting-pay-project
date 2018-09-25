@@ -1,6 +1,6 @@
 package com.unicom.acting.pay.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.unicom.skyark.component.common.SkyArkPropertyNamingStrategy;
 
@@ -21,16 +21,26 @@ import java.util.List;
  * @author Wangkh
  */
 @JsonNaming(SkyArkPropertyNamingStrategy.class)
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class RecvFeeAsynAllMsg {
+    private AsynWorkMQInfo asynWorkMQInfo;
     private PayLogDmnMQInfo payLogDmnMQInfo;
     private PayLogMQInfo payLogMQInfo;
-    private List<AccessLogMQInfo> accessLogMQInfoList;
-    private List<DepositMQInfo> depositMQInfoList;
+    private List<AccessLogMQInfo> accessLogMQInfo;
+    private List<DepositMQInfo> depositMQInfo;
     private RecvCreditMQInfo recvCreditMQInfo;
     private JFCreditMQInfo jfCreditMQInfo;
     private LeaveRealFeeMQInfo leaveRealFeeMQInfo;
-    private List<SmsMQInfo> smsMQInfoList;
+    private List<SmsMQInfo> smsMQInfo;
+    private RecvFeeAllMQKey recvfeeCheckInfo;
+
+    public AsynWorkMQInfo getAsynWorkMQInfo() {
+        return asynWorkMQInfo;
+    }
+
+    public void setAsynWorkMQInfo(AsynWorkMQInfo asynWorkMQInfo) {
+        this.asynWorkMQInfo = asynWorkMQInfo;
+    }
 
     public PayLogDmnMQInfo getPayLogDmnMQInfo() {
         return payLogDmnMQInfo;
@@ -48,20 +58,20 @@ public class RecvFeeAsynAllMsg {
         this.payLogMQInfo = payLogMQInfo;
     }
 
-    public List<AccessLogMQInfo> getAccessLogMQInfoList() {
-        return accessLogMQInfoList;
+    public List<AccessLogMQInfo> getAccessLogMQInfo() {
+        return accessLogMQInfo;
     }
 
-    public void setAccessLogMQInfoList(List<AccessLogMQInfo> accessLogMQInfoList) {
-        this.accessLogMQInfoList = accessLogMQInfoList;
+    public void setAccessLogMQInfo(List<AccessLogMQInfo> accessLogMQInfo) {
+        this.accessLogMQInfo = accessLogMQInfo;
     }
 
-    public List<DepositMQInfo> getDepositMQInfoList() {
-        return depositMQInfoList;
+    public List<DepositMQInfo> getDepositMQInfo() {
+        return depositMQInfo;
     }
 
-    public void setDepositMQInfoList(List<DepositMQInfo> depositMQInfoList) {
-        this.depositMQInfoList = depositMQInfoList;
+    public void setDepositMQInfo(List<DepositMQInfo> depositMQInfo) {
+        this.depositMQInfo = depositMQInfo;
     }
 
     public RecvCreditMQInfo getRecvCreditMQInfo() {
@@ -88,25 +98,35 @@ public class RecvFeeAsynAllMsg {
         this.leaveRealFeeMQInfo = leaveRealFeeMQInfo;
     }
 
-    public List<SmsMQInfo> getSmsMQInfoList() {
-        return smsMQInfoList;
+    public List<SmsMQInfo> getSmsMQInfo() {
+        return smsMQInfo;
     }
 
-    public void setSmsMQInfoList(List<SmsMQInfo> smsMQInfoList) {
-        this.smsMQInfoList = smsMQInfoList;
+    public void setSmsMQInfo(List<SmsMQInfo> smsMQInfo) {
+        this.smsMQInfo = smsMQInfo;
+    }
+
+    public RecvFeeAllMQKey getRecvfeeCheckInfo() {
+        return recvfeeCheckInfo;
+    }
+
+    public void setRecvfeeCheckInfo(RecvFeeAllMQKey recvfeeCheckInfo) {
+        this.recvfeeCheckInfo = recvfeeCheckInfo;
     }
 
     @Override
     public String toString() {
         return "RecvFeeAsynAllMsg{" +
-                "payLogDmnMQInfo=" + payLogDmnMQInfo +
+                "asynWorkMQInfo=" + asynWorkMQInfo +
+                ", payLogDmnMQInfo=" + payLogDmnMQInfo +
                 ", payLogMQInfo=" + payLogMQInfo +
-                ", accessLogMQInfoList=" + accessLogMQInfoList +
-                ", depositMQInfoList=" + depositMQInfoList +
+                ", accessLogMQInfo=" + accessLogMQInfo +
+                ", depositMQInfo=" + depositMQInfo +
                 ", recvCreditMQInfo=" + recvCreditMQInfo +
                 ", jfCreditMQInfo=" + jfCreditMQInfo +
                 ", leaveRealFeeMQInfo=" + leaveRealFeeMQInfo +
-                ", smsMQInfoList=" + smsMQInfoList +
+                ", smsMQInfo=" + smsMQInfo +
+                ", recvfeeCheckInfo=" + recvfeeCheckInfo +
                 '}';
     }
 }

@@ -1,7 +1,8 @@
 package com.unicom.acting.pay.writeoff.service.impl;
 
 import com.unicom.acting.pay.dao.UserOtherInfoDao;
-import com.unicom.acting.pay.domain.ActPayPubDef;
+import com.unicom.acting.pay.domain.ActingPayCommparaDef;
+import com.unicom.acting.pay.domain.ActingPayPubDef;
 import com.unicom.acting.pay.domain.UserParamInfo;
 import com.unicom.acting.pay.domain.UserRelationInfo;
 import com.unicom.skyark.component.common.constants.SysTypes;
@@ -34,23 +35,6 @@ public class PayDatumServiceImpl implements PayDatumService {
     @Autowired
     private RestClient restClient;
 
-    @Override
-    public boolean isSpecialRecvState(Cycle cycle) {
-        if (isDrecvPeriod(cycle) || isPatchDrecvPeriod(cycle)) {
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isDrecvPeriod(Cycle curCycle) {
-        return (getMonthAcctStatus(curCycle) == 5 || getMonthAcctStatus(curCycle) < 0
-                || getMonthAcctStatus(curCycle) >= 20 && getMonthAcctStatus(curCycle) < 90);
-    }
-
-    private boolean isPatchDrecvPeriod(Cycle curCycle) {
-        return (getMonthAcctStatus(curCycle) == 8 || getMonthAcctStatus(curCycle) == 90);
-    }
-
     private long getMonthAcctStatus(Cycle curCycle) {
         return Long.valueOf(curCycle.getMonthAcctStatus());
     }
@@ -82,14 +66,14 @@ public class PayDatumServiceImpl implements PayDatumService {
     }
 
     @Override
-    public long updateBadBillUserInfo(String acctId, String actTag, String provinceCode) {
-        return userOtherInfoInDBDao.updateBadBillUserInfo(acctId, actTag, provinceCode);
+    public long updateBadBillUserInfo(String acctId, String actTag) {
+        return userOtherInfoInDBDao.updateBadBillUserInfo(acctId, actTag);
     }
 
     @Override
     public boolean ifBigAcctForFireCreditCtrl(String tradeStaffId, String acctId, String provinceCode, WriteOffRuleInfo writeOffRuleInfo) {
         boolean ifBigAcct = false;
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.JF_BIGACCT);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.JF_BIGACCT);
         //信控大合帐用户表不存在，暂时不查询
 //        if (commPara != null && "1".equals(commPara.getParaCode1())) {
 //            ifBigAcct = accountPayDao.isCreditMutiAcct(acctId, provinceCode);
@@ -99,22 +83,16 @@ public class PayDatumServiceImpl implements PayDatumService {
 //        }
 
         if (!ifBigAcct && commPara != null && "1".equals(commPara.getParaCode2())
-                && ActPayPubDef.DEFAULT_PROVINCE_CODE.equals(tradeStaffId)) {
+                && ActingPayPubDef.DEFAULT_PROVINCE_CODE.equals(tradeStaffId)) {
             return true;
         }
         return false;
     }
 
     @Override
-    public boolean ifSmsBlackList(String userId, String provinceCode) {
-        //屏蔽暂时没有黑名单用户
-        return false;
-    }
-
-    @Override
     public String getWJMainSN(String userId, String relationType, String sysdate, String provinceCode) {
         if (true) {
-            return "";
+            return "18615650856";
         }
         List<UserRelationInfo> userRelations = getUserRelation(userId, "0", relationType, "ZZZZ", provinceCode);
         if (CollectionUtils.isEmpty(userRelations)) {
@@ -163,7 +141,7 @@ public class PayDatumServiceImpl implements PayDatumService {
         requestEntity.setUriParams(reqParam);
         //用户资料查询公共微服务
         Rsp rsp = restClient.callSkyArkMicroService("accounting",
-                ActPayPubDef.QRY_USER_PARAM, HttpMethod.GET, requestEntity);
+                ActingPayPubDef.QRY_USER_PARAM, HttpMethod.GET, requestEntity);
 
         if (!SysTypes.SYS_SUCCESS_CODE.equals(rsp.getRspCode())) {
             throw new SkyArkException(rsp.getRspCode(), rsp.getRspDesc());
@@ -195,7 +173,7 @@ public class PayDatumServiceImpl implements PayDatumService {
         requestEntity.setUriParams(reqParam);
         //用户资料查询公共微服务
         Rsp rsp = restClient.callSkyArkMicroService("accounting",
-                ActPayPubDef.QRY_USER_RELATION, HttpMethod.GET, requestEntity);
+                ActingPayPubDef.QRY_USER_RELATION, HttpMethod.GET, requestEntity);
 
         if (!SysTypes.SYS_SUCCESS_CODE.equals(rsp.getRspCode())) {
             throw new SkyArkException(rsp.getRspCode(), rsp.getRspDesc());

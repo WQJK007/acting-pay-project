@@ -26,7 +26,7 @@ public interface DerateLateFeeLogService extends IBaseService {
      * @return
      */
     int updDerateLateFeeLogByDerateId(String derateId, String operateId, long usedDerateFee,
-                                      char oldUseTag, String newUseTag, String provinceCode);
+                                      char oldUseTag, String newUseTag);
 
 
     /**
@@ -36,11 +36,10 @@ public interface DerateLateFeeLogService extends IBaseService {
      * @param writeOffRuleInfo
      * @param writeOffCycle
      * @param chargeId
-     * @param provinceCode
      */
     void updDerateLateFeeLog(List<FeeDerateLateFeeLog> derateLateFeeLogs,
                              WriteOffRuleInfo writeOffRuleInfo, Set<Integer> writeOffCycle,
-                             String chargeId, String provinceCode);
+                             String chargeId);
 
 
     /**

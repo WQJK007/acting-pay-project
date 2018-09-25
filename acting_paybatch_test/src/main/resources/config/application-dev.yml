@@ -1,0 +1,42 @@
+server:
+  port: 8080
+  tomcat:
+    max-threads: 1000
+
+logs:
+  svcperform:
+    enable: true  #是否开启性能日志
+    printResult: true  #是否打印输出结果
+
+web:
+  rest:
+    enable: true #启用rest调用，默认false不启用
+    async:
+      enable: true #启用rest异步调用，默认false不启用
+      maxWaitTimes: 4000 #异步调用的最大等待时间
+      defaultThreadSleepTimes: 10 #异步调用响应状态监听的间隔时间
+      mayInterruptIfRunning: true #异步调用是否可中断正在运行的线程
+    svcdomains-layout:
+    - domain: accounting #调用服务的域名（归属中心）
+
+jdbc:
+  enable: true #是否启用jdbc操作组件
+  defaultdb: ACTS_DRDS
+  datasources-layout: #配置需加载的数据库
+    ACTS_DRDS: #数据库分类
+    - id: ACTS_DRDS  #需启用的数据库名称（与中心下数据源的名称：udbiconfig.datasources[].name对应）
+      routes: '*'
+      transactionType: LOCAL
+    ACTING_DRDS: #数据库分类
+    - id: ACTING_DRDS  #需启用的数据库名称（与中心下数据源的名称：udbiconfig.datasources[].name对应）
+      routes: '*'
+      transactionType: LOCAL
+    ACTPARA_RDS:
+    - id: ACTPARA_RDS
+      routes: '*'
+    ACT_RDS:
+    - id: ACT_RDS_1
+      routes: '11|34|86|38|95|ZZZZ'
+      defaultTag: true
+    - id: ACT_RDS_2
+      routes: '97|13|36|31|87'

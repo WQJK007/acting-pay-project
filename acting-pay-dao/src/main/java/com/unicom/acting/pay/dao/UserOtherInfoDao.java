@@ -14,8 +14,7 @@ public interface UserOtherInfoDao extends IBaseDao {
      *
      * @param acctId
      * @param actTag
-     * @param provinceCode
      * @return
      */
-    long updateBadBillUserInfo(String acctId, String actTag, String provinceCode);
+    long updateBadBillUserInfo(String acctId, String actTag);
 }

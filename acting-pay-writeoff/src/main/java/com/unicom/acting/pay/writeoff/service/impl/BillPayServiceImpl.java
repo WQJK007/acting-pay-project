@@ -1,12 +1,11 @@
 package com.unicom.acting.pay.writeoff.service.impl;
 
 import com.unicom.acting.fee.domain.FeeBill;
-import com.unicom.acting.fee.domain.FeePayLog;
 import com.unicom.acting.pay.dao.BillDao;
 import com.unicom.acting.pay.domain.Bill;
+import com.unicom.acting.pay.domain.PayLog;
 import com.unicom.skyark.component.exception.SkyArkException;
 import com.unicom.skyark.component.util.StringUtil;
-import com.unicom.acting.fee.writeoff.service.SysCommOperFeeService;
 import com.unicom.acting.pay.writeoff.service.BillPayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,26 +26,24 @@ public class BillPayServiceImpl implements BillPayService {
     private Logger logger = LoggerFactory.getLogger(BillPayServiceImpl.class);
     @Autowired
     private BillDao billPayDao;
-    @Autowired
-    private SysCommOperFeeService sysCommOperPayService;
 
     @Override
-    public boolean hasBadBillByAcctId(String acctId, String provinceCode) {
-        return billPayDao.hasBadBillByAcctId(acctId, provinceCode);
+    public boolean hasBadBillByAcctId(String acctId) {
+        return billPayDao.hasBadBillByAcctId(acctId);
     }
 
     @Override
-    public int updateBillBalance(Bill bill, String provinceCode) {
-        return billPayDao.updateBillBalance(bill, provinceCode);
+    public int updateBillBalance(Bill bill) {
+        return billPayDao.updateBillBalance(bill);
     }
 
     @Override
-    public int updateBadBillBalance(Bill bill, String provinceCode) {
-        return billPayDao.updateBadBillBalance(bill, provinceCode);
+    public int updateBadBillBalance(Bill bill) {
+        return billPayDao.updateBadBillBalance(bill);
     }
 
     @Override
-    public void updateBillInfo(List<FeeBill> bills, FeePayLog payLog, boolean hasBadBill) {
+    public void updateBillInfo(List<FeeBill> bills, PayLog payLog, boolean hasBadBill) {
         if (CollectionUtils.isEmpty(bills)) {
             return;
         }
@@ -79,10 +76,10 @@ public class BillPayServiceImpl implements BillPayService {
                 tmpBill.setUpdateDepartId(payLog.getRecvDepartId());
                 tmpBill.setUpdateStaffId(payLog.getRecvStaffId());
                 //更新账单表
-                int updateBill = updateBillBalance(tmpBill, payLog.getProvinceCode());
+                int updateBill = updateBillBalance(tmpBill);
                 //更新坏账表
                 if (hasBadBill && updateBill == 0) {
-                    updateBill = updateBadBillBalance(tmpBill, payLog.getProvinceCode());
+                    updateBill = updateBadBillBalance(tmpBill);
                 }
 
                 if (updateBill != 1) {

@@ -13,7 +13,7 @@ public class TradeCheckLogServiceImpl implements TradeCheckLogService {
 
 
     @Override
-    public int insertTradeHyLog(TradeHyLog tradeHyLog, String provinceCode) {
-        return tradeChkLogDao.insertTradeHyLog(tradeHyLog, provinceCode);
+    public int insertTradeHyLog(TradeHyLog tradeHyLog) {
+        return tradeChkLogDao.insertTradeHyLog(tradeHyLog);
     }
 }

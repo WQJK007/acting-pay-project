@@ -11,6 +11,18 @@ public class TradeDepositInfo {
      */
     private String acctBalanceId;
     /**
+     * @see #userId 用户标识
+     */
+    private String userId;
+    /**
+     * @see #depositCode 用户标识
+     */
+    private String depositCode;
+    /**
+     * @see #remark 备注
+     */
+    private String remark;
+    /**
      * @see #money 账本可清退/可转金额
      */
     private long money;
@@ -20,13 +32,36 @@ public class TradeDepositInfo {
      */
     private char forceBakeTag;
 
-
     public String getAcctBalanceId() {
         return acctBalanceId;
     }
 
     public void setAcctBalanceId(String acctBalanceId) {
         this.acctBalanceId = acctBalanceId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String getDepositCode() {
+        return depositCode;
+    }
+
+    public void setDepositCode(String depositCode) {
+        this.depositCode = depositCode;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
     }
 
     public long getMoney() {
@@ -43,5 +78,17 @@ public class TradeDepositInfo {
 
     public void setForceBakeTag(char forceBakeTag) {
         this.forceBakeTag = forceBakeTag;
+    }
+
+    @Override
+    public String toString() {
+        return "TradeDepositInfo{" +
+                "acctBalanceId='" + acctBalanceId + '\'' +
+                ", userId='" + userId + '\'' +
+                ", depositCode='" + depositCode + '\'' +
+                ", remark='" + remark + '\'' +
+                ", money=" + money +
+                ", forceBakeTag=" + forceBakeTag +
+                '}';
     }
 }

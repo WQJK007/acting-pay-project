@@ -3,33 +3,34 @@ package com.unicom.acting.pay.domain;
 /**
  * 账务交易常量
  */
-public class ActPayPubDef {
-    private ActPayPubDef() {}
-    //RDS参数库
-    public static final String ACT_RDS_DBCONN = "rds_para";
-    //RDS工单库1
-    public static final String ACT_RDS_DBCONN_ORDER1 = "rds_order1";
-    //RDS工单库1
-    public static final String ACT_RDS_DBCONN_ORDER2= "rds_order2";
-    //账务中心数据库
-    public static final String ACTING_DRDS_DBCONN = "acting";
-    //账户中心数据库
-    public static final String ACTS_DRDS_DBCONN = "acts";
+public class ActingPayPubDef {
+    private ActingPayPubDef() {
+    }
 
     //默认省份、地市、网别值，获取销账规则使用
     public static final String DEFAULT_PROVINCE_CODE = "ZZZZ";
     public static final String DEFAULT_EPARCHY_CODE = "ZZZZ";
     public static final String DEFAULT_NET_TYPE_CODE = "ZZ";
 
-
-    //序列类型
-    public static final String SEQ_TRADE_ID = "SEQ_TRADE_ID"; //交易流水
-    public static final String SEQ_CHARGE_ID = "SEQ_CHARGE_ID"; //交费流水
-    public static final String SEQ_ACCESS_ID = "SEQ_ACCESS_ID";  //生成存取款日志流水
-    public static final String SEQ_WRITEOFF_ID = "SEQ_WRITEOFF_ID";  //生成销账日志流水
-    public static final String SEQ_ACCTBALANCE_ID = "SEQ_ACCTBALANCE_ID"; //账本序列
-    public static final String SEQ_BILL_ID = "SEQ_BILL_ID";     //账单流水
-    public static final String SEQ_SMSSEND_ID = "SEQ_SMSSEND_ID";   //短信工单流水
+    //####序列类型####
+    public static final String SEQ_OUTERTRADEID_TANNAME = "TF_B_PAYLOG";
+    public static final String SEQ_OUTERTRADEID_COLUMNNAME = "OUTER_TRADE_ID";
+    /**
+     * @see #SEQ_CHARGEID_TANNAME 交易流水
+     */
+    public static final String SEQ_CHARGEID_TANNAME = "TF_B_PAYLOG";
+    /**
+     * @see #SEQ_CHARGEID_COLUMNNAME 交易流水列名
+     */
+    public static final String SEQ_CHARGEID_COLUMNNAME = "CHARGE_ID";
+    public static final String SEQ_CLCHARGEID_TANNAME = "TF_B_CLPAYLOG";
+    public static final String SEQ_CLCHARGEID_COLUMNNAME = "CL_PAYLOG_ID";
+    public static final String SEQ_ACCESSID_TABNAME = "TF_B_ACCESSLOG";
+    public static final String SEQ_ACCESSID_COLUMNNAME = "ACCESS_ID";
+    public static final String SEQ_WRITEOFFID_TABNAME = "TF_B_WRITEOFFLOG";
+    public static final String SEQ_WRITEOFFID_COLUMNNAME = "WRITEOFF_ID";
+    public static final String SEQ_SMSSENDID_TABNAME = "TF_B_SMSLOG";
+    public static final String SEQ_SMSSENDID_COLUMNNAME = "SMS_ID";
 
     //交费账期
     public static final int MIN_CYCLE_ID = 198001;    //最小销账账期
@@ -92,4 +93,21 @@ public class ActPayPubDef {
 
     //Topic类型
     public static final String TRADE_MQTYPE_ORDER = "DEVACT_SYNCDEPO_TEST1";
+
+    /**
+     * 智慧沃家主用户属性
+     */
+    public static final String WJ_MAINUSER_PARAMID = "20000006";
+    /**
+     * 沃享主用户属性21000007
+     */
+    public static final String WX_MAINUSER_PARAMID = "21000007";
+    /**
+     * 省份账户属性
+     */
+    public static final String OLD_ACCTID_PARAMID = "20000060";
+    /**
+     * 省份用户属性
+     */
+    public static final String OLD_USERID_PARAMID = "20000050";
 }

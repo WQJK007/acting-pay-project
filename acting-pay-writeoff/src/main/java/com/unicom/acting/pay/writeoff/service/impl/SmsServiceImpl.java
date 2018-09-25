@@ -1,17 +1,17 @@
 package com.unicom.acting.pay.writeoff.service.impl;
 
+import com.unicom.acting.common.domain.User;
 import com.unicom.acting.fee.writeoff.domain.TradeCommInfoIn;
 import com.unicom.acting.pay.dao.SmsOrderDao;
 import com.unicom.acting.pay.dao.SmsParamDao;
+import com.unicom.acting.pay.writeoff.service.UserParamRelService;
 import com.unicom.skyark.component.exception.SkyArkException;
-import com.unicom.skyark.component.jdbc.DbTypes;
 import com.unicom.skyark.component.util.StringUtil;
 import com.unicom.skyark.component.util.TimeUtil;
 import com.unicom.acting.fee.domain.*;
 import com.unicom.acting.fee.writeoff.service.CommParaFeeService;
 import com.unicom.acting.fee.writeoff.service.SysCommOperFeeService;
 import com.unicom.acting.pay.domain.*;
-import com.unicom.acting.pay.writeoff.service.PayDatumService;
 import com.unicom.acting.pay.writeoff.service.SmsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * 充值短信发送服务,通过JDBC方式访问短信参数和短信工单
  *
- * @author Administrators
+ * @author wangkh
  */
 @Service
 public class SmsServiceImpl implements SmsService {
@@ -35,20 +35,20 @@ public class SmsServiceImpl implements SmsService {
     @Autowired
     private SmsOrderDao smsIODao;
     @Autowired
-    private PayDatumService payDatumService;
-    @Autowired
     private SysCommOperFeeService sysCommOperPayService;
     @Autowired
     private CommParaFeeService commParaPayService;
+    @Autowired
+    private UserParamRelService userParamRelService;
 
     @Override
-    public void loadSmsParam(String provinceCode) {
+    public void loadSmsParam() {
         //短信条件
-        List<SmsCond> smsConds = smsParamDao.getProvSmsCond(provinceCode);
+        List<SmsCond> smsConds = smsParamDao.getProvSmsCond();
         //短信模板
-        List<SmsTemplet> smsTemplets = smsParamDao.getSmsTemplet(provinceCode);
+        List<SmsTemplet> smsTemplets = smsParamDao.getSmsTemplet();
         //短信转换
-        List<SmsConvert> smsConverts = smsParamDao.getSmsConvertId(provinceCode);
+        List<SmsConvert> smsConverts = smsParamDao.getSmsConvertId();
 
         SmsStaticParamInfo.setAllMPSmsCond(smsConds);
         SmsStaticParamInfo.setAllSmsTemplet(smsTemplets);
@@ -61,7 +61,7 @@ public class SmsServiceImpl implements SmsService {
         //短信发送类型
         String msgSendType = getMsgSendType(writeOffRuleInfo);
 
-        FeePayLog payLog = tradeCommInfo.getFeePayLog();
+        PayLog payLog = tradeCommResultInfo.getPayLog();
         User mainUser = tradeCommInfo.getMainUser();
 
         //校验是否发送短信
@@ -69,9 +69,9 @@ public class SmsServiceImpl implements SmsService {
             return;
         }
 
-        FeeWriteSnapLog writeSnapLog = tradeCommInfo.getFeeWriteSnapLog();
+        FeeWriteSnapLog feeWriteSnapLog = tradeCommInfo.getFeeWriteSnapLog();
         //获取短信模板标识
-        long smTempletId = getSmTempletId(payLog.getPaymentId(), mainUser, writeSnapLog, writeOffRuleInfo);
+        long smTempletId = getSmTempletId(payLog.getPaymentId(), mainUser, feeWriteSnapLog, writeOffRuleInfo);
         if (smTempletId == -1) {
             throw new SkyArkException("没有找到对应的短信模板,tradeDefId = " + payLog.getPaymentId());
         }
@@ -83,82 +83,69 @@ public class SmsServiceImpl implements SmsService {
             return;
         }
 
-        //用户网别  ActPayPubDef.ACT_RDS_DBCONN
-        String parentTypeCode = commParaPayService.getParentTypeCode(payLog.getNetTypeCode(), DbTypes.ACT_PARA_RDS);
+        //用户网别  ActingPayPubDef.ACT_RDS_DBCONN
+        String parentTypeCode = commParaPayService.getParentTypeCode(payLog.getNetTypeCode());
 
         //生成短信工单数据
-        List<NoticeInfo> noticeInfoList = genNoticeInfo(payLog, writeOffRuleInfo,
-                writeSnapLog, smTempletId, msgSendType, parentTypeCode);
+        List<SmsOrder> smsOrders = genSmsOrder(payLog, writeOffRuleInfo,
+                feeWriteSnapLog, smTempletId, msgSendType, parentTypeCode,
+                tradeCommInfoIn.getHeaderGray());
 
-        tradeCommInfo.setNoticeInfoList(noticeInfoList);
+        tradeCommResultInfo.setSmsOrders(smsOrders);
 
         //生成短信MQ对象信息
-        if (!CollectionUtils.isEmpty(noticeInfoList)) {
-            tradeCommResultInfo.setSmsMQInfos(genSmsMQInfo(noticeInfoList));
+        if (!CollectionUtils.isEmpty(smsOrders)) {
+            tradeCommResultInfo.setSmsMQInfos(genSmsMQInfo(smsOrders));
         }
     }
 
     @Override
-    public void insertSmsIO(List<NoticeInfo> noticeInfoList, String provinceCode) {
-       //短信格式化转换
-        // smsIODao.insertSmsOrder(noticeInfoList, provinceCode);
+    public void insertSmsIO(List<SmsOrder> smsOrders) {
+        //短信格式化转换
+        smsIODao.insertSmsOrder(smsOrders);
     }
 
     /**
      * 生成充值后短信MQ对象信息
      *
-     * @param noticeInfoList
+     * @param smsOrders
      * @return
      */
-    private List<SmsMQInfo> genSmsMQInfo(List<NoticeInfo> noticeInfoList) {
-        List<SmsMQInfo> smsMQInfoList = new ArrayList(noticeInfoList.size());
-        for (NoticeInfo noticeInfo : noticeInfoList) {
+    private List<SmsMQInfo> genSmsMQInfo(List<SmsOrder> smsOrders) {
+        List<SmsMQInfo> smsMQInfoList = new ArrayList(smsOrders.size());
+        for (SmsOrder smsOrder : smsOrders) {
             //短信因子
             TempletValue templetValue = new TempletValue();
-            templetValue.setSysdate(noticeInfo.getSysdate());
-            templetValue.setSysdate2(noticeInfo.getSysdate2());
-            templetValue.setRecvfee(noticeInfo.getRecvfee());
-            templetValue.setCurrentavlfee(noticeInfo.getCurrentavlfee());
-            templetValue.setAllnewbalance(noticeInfo.getAllnewbalance());
-            templetValue.setAllnewrowefee(noticeInfo.getAllnewrowefee());
-            templetValue.setAllnewmoney(noticeInfo.getAllnewmoney());
-            templetValue.setAllnewbowefee(noticeInfo.getAllnewbowefee());
-            templetValue.setAllrealfee(noticeInfo.getAllrealfee());
-            templetValue.setMonth(noticeInfo.getMonth());
-            templetValue.setSerialnumberOut(noticeInfo.getSerialnumberOut());
+            templetValue.setSysdate(smsOrder.getSysdate());
+            templetValue.setSysdate2(smsOrder.getSysdate2());
+            templetValue.setRecvfee(smsOrder.getRecvfee());
+            templetValue.setCurrentavlfee(smsOrder.getCurrentavlfee());
+            templetValue.setAllnewbalance(smsOrder.getAllnewbalance());
+            templetValue.setAllnewrowefee(smsOrder.getAllnewrowefee());
+            templetValue.setAllnewmoney(smsOrder.getAllnewmoney());
+            templetValue.setAllnewbowefee(smsOrder.getAllnewbowefee());
+            templetValue.setAllrealfee(smsOrder.getAllrealfee());
+            templetValue.setMonth(smsOrder.getMonth());
+            templetValue.setSerialnumberOut(smsOrder.getSerialnumberOut());
             //短信内容
             SmsMQInfo smsMQInfo = new SmsMQInfo();
             smsMQInfo.setTempletValue(templetValue);
-            smsMQInfo.setAccessCode(noticeInfo.getAccessCode());
-            smsMQInfo.setSendTimeCode(noticeInfo.getSendTimeCode());
-            smsMQInfo.setRecvObjectType(noticeInfo.getRecvObjectType());
-            smsMQInfo.setRecvObject(noticeInfo.getRecvObject());
-            smsMQInfo.setEparchyCode(noticeInfo.getEparchyCode());
-            smsMQInfo.setProvinceCode(noticeInfo.getProvinceCode());
-            smsMQInfo.setTempletId(noticeInfo.getTempletId());
-            smsMQInfo.setGenerateTime(noticeInfo.getGenerateTime());
+            smsMQInfo.setAccessCode(smsOrder.getAccessCode());
+            smsMQInfo.setSendTimeCode(smsOrder.getSendTimeCode());
+            smsMQInfo.setRecvObjectType(smsOrder.getRecvObjectType());
+            smsMQInfo.setRecvObject(smsOrder.getRecvObject());
+            smsMQInfo.setEparchyCode(smsOrder.getEparchyCode());
+            smsMQInfo.setProvinceCode(smsOrder.getProvinceCode());
+            smsMQInfo.setTempletId(smsOrder.getTempletId());
+            smsMQInfo.setGenerateTime(smsOrder.getGenerateTime());
             try {
-                smsMQInfo.setGenerateTime(TimeUtil.tranDateFormat(noticeInfo.getGenerateTime(),
+                smsMQInfo.setGenerateTime(TimeUtil.tranDateFormat(smsOrder.getGenerateTime(),
                         TimeUtil.DATETIME_FORMAT, TimeUtil.DATETIME_FORMAT_14));
             } catch (Exception ex) {
-                throw new SkyArkException("短信发送时间格式化转换失败,time = " + noticeInfo.getGenerateTime());
+                throw new SkyArkException("短信发送时间格式化转换失败,time = " + smsOrder.getGenerateTime());
             }
-
-//            try {
-//                smsMQInfo.setSendTimeStart(TimeUtil.tranDateFormat(noticeInfo.getSendTimeStart(),
-//                        TimeUtil.DATETIME_FORMAT, TimeUtil.DATETIME_FORMAT_14));
-//            } catch (Exception ex) {
-//                throw new SkyArkException("短信发送开始时间格式化转换失败,time = " + noticeInfo.getSendTimeStart());
-//            }
-//
-//            try {
-//                smsMQInfo.setEndTime(TimeUtil.tranDateFormat(noticeInfo.getEndTime(),
-//                        TimeUtil.DATETIME_FORMAT, TimeUtil.DATETIME_FORMAT_14));
-//            } catch (Exception ex) {
-//                throw new SkyArkException("短信发送结束时间格式化转换失败,time = " + noticeInfo.getEndTime());
-//            }
-            smsMQInfo.setReviewFlag(noticeInfo.getReviewFlag());
-            smsMQInfo.setRemark(noticeInfo.getRemark());
+            smsMQInfo.setReviewFlag(smsOrder.getReviewFlag());
+            smsMQInfo.setRemark(smsOrder.getRemark());
             smsMQInfoList.add(smsMQInfo);
         }
         return smsMQInfoList;
@@ -171,7 +158,7 @@ public class SmsServiceImpl implements SmsService {
      * @return
      */
     private String getMsgSendType(WriteOffRuleInfo writeOffRuleInfo) {
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.ASM_MSGSEND_TYPE);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_MSGSEND_TYPE);
         //参数没有配置或者配置值为空，不发送短信
         if (commPara == null || StringUtil.isEmptyCheckNullStr(commPara.getParaCode1())
                 || "0".equals(commPara.getParaCode1())) {
@@ -198,7 +185,7 @@ public class SmsServiceImpl implements SmsService {
      * @param invoiceFee
      * @return
      */
-    private boolean ifSendSmsMsg(FeePayLog payLog, WriteOffRuleInfo writeOffRuleInfo, User mainUser, String msgSendType, long invoiceFee) {
+    private boolean ifSendSmsMsg(PayLog payLog, WriteOffRuleInfo writeOffRuleInfo, User mainUser, String msgSendType, long invoiceFee) {
         //省份配置短信类型不发送则直接返回
         if (SmsStaticParamInfo.MSG_SEND_ABNORMAL.equals(msgSendType)) {
             return false;
@@ -229,44 +216,45 @@ public class SmsServiceImpl implements SmsService {
     }
 
     /**
-     * 生成短信入库信息
+     * 生成短信工单信息
      *
      * @param payLog
      * @param writeOffRuleInfo
-     * @param writeSnapLog
+     * @param feeWriteSnapLog
      * @param smTempletId
      * @param msgSendType
      * @param parentTypeCode
+     * @param headerGray
      * @return
      */
-    private List<NoticeInfo> genNoticeInfo(FeePayLog payLog, WriteOffRuleInfo writeOffRuleInfo, FeeWriteSnapLog writeSnapLog,
-                                           long smTempletId, String msgSendType, String parentTypeCode) {
+    private List<SmsOrder> genSmsOrder(PayLog payLog, WriteOffRuleInfo writeOffRuleInfo, FeeWriteSnapLog feeWriteSnapLog,
+                                       long smTempletId, String msgSendType, String parentTypeCode,
+                                       String headerGray) {
         //生成短信工单对象
-        List<NoticeInfo> noticeInfoList = new ArrayList();
-        NoticeInfo noticeInfo = new NoticeInfo();
-        String smsId = sysCommOperPayService.getSequence(payLog.getEparchyCode(), ActPayPubDef.SEQ_SMSSEND_ID, payLog.getProvinceCode());
-        noticeInfo.setSmsNoticeId(smsId);
-        noticeInfo.setAccessCode("*******");
-        noticeInfo.setSendTimeCode("03");
-        noticeInfo.setRecvObjectType("00");
-        noticeInfo.setRecvObject(payLog.getSerialNumber());
-        noticeInfo.setAcctId(payLog.getAcctId());
-        noticeInfo.setEparchyCode(payLog.getEparchyCode());
-        noticeInfo.setProvinceCode(payLog.getProvinceCode());
-        noticeInfo.setTempletId(String.valueOf(smTempletId));
-        noticeInfo.setRemark(payLog.getChargeId());
+        List<SmsOrder> noticeInfoList = new ArrayList();
+        SmsOrder smsOrder = new SmsOrder();
+        String smsId = sysCommOperPayService.getActingSequence(ActingPayPubDef.SEQ_SMSSENDID_TABNAME,
+                ActingPayPubDef.SEQ_SMSSENDID_COLUMNNAME, payLog.getProvinceCode());
+        smsOrder.setSmsNoticeId(smsId);
+        smsOrder.setAccessCode("*******");
+        smsOrder.setSendTimeCode("03");
+        smsOrder.setRecvObjectType("00");
+        smsOrder.setRecvObject(payLog.getSerialNumber());
+        smsOrder.setAcctId(payLog.getAcctId());
+        smsOrder.setEparchyCode(payLog.getEparchyCode());
+        smsOrder.setProvinceCode(payLog.getProvinceCode());
+        smsOrder.setTempletId(String.valueOf(smTempletId));
+        smsOrder.setRemark(payLog.getChargeId());
         if (SmsStaticParamInfo.MSG_SEND_NORMAL.equals(msgSendType)) {
-            noticeInfo.setReviewFlag("0");
+            smsOrder.setReviewFlag("0");
         } else {
-            noticeInfo.setReviewFlag("1");
+            smsOrder.setReviewFlag("1");
         }
 
-        noticeInfo.setGenerateTime(writeOffRuleInfo.getSysdate());
-//        noticeInfo.setSendTimeStart(writeOffRuleInfo.getSysdate());
-//        noticeInfo.setEndTime(writeOffRuleInfo.getSysdate());
+        smsOrder.setGenerateTime(writeOffRuleInfo.getSysdate());
 
         //短信模板因子
-        genSmsFactor(noticeInfo, payLog, writeOffRuleInfo, writeSnapLog);
+        genSmsFactor(smsOrder, payLog, writeOffRuleInfo, feeWriteSnapLog);
 
         //融合用户发送短信方式
         String msgSendFRType = getFRMsgSendType(writeOffRuleInfo);
@@ -277,33 +265,34 @@ public class SmsServiceImpl implements SmsService {
 
         if ("1".equals(msgSendFRType)) {
             //查询是否智慧沃家主用户
-            String mainSN = payDatumService.getWJMainSN(payLog.getUserId(), relationType, writeOffRuleInfo.getSysdate(), payLog.getProvinceCode());
+            String mainSN = userParamRelService.getWJMainSN(payLog.getUserId(), relationType, headerGray);
             //如果不是智慧沃家用户，校验是否是沃享用户
             if (StringUtil.isEmptyCheckNullStr(mainSN)) {
-                mainSN = payDatumService.getWXmainSNumber(payLog.getUserId(), writeOffRuleInfo.getSysdate(), payLog.getProvinceCode());
+                //返回值为-1代表该用户是沃享主用户，短信只发送一次即可
+                mainSN = userParamRelService.getWXMainSN(payLog.getUserId(), headerGray);
             }
             //新增一条主用户短信
-            if (!StringUtil.isEmptyCheckNullStr(mainSN)) {
-                NoticeInfo mainNoticeInfo = noticeInfo.clone();
-                mainNoticeInfo.setSmsNoticeId(sysCommOperPayService.getSequence(payLog.getEparchyCode(),
-                        ActPayPubDef.SEQ_SMSSEND_ID, payLog.getProvinceCode()));
-                mainNoticeInfo.setRecvObject(mainSN);
-                noticeInfoList.add(mainNoticeInfo);
+            if (!StringUtil.isEmptyCheckNullStr(mainSN) && !"-1".equals(mainSN)) {
+                SmsOrder mainSmsOrder = smsOrder.clone();
+                mainSmsOrder.setSmsNoticeId(sysCommOperPayService.getActingSequence(ActingPayPubDef.SEQ_SMSSENDID_TABNAME,
+                        ActingPayPubDef.SEQ_SMSSENDID_COLUMNNAME, payLog.getProvinceCode()));
+                mainSmsOrder.setRecvObject(mainSN);
+                noticeInfoList.add(mainSmsOrder);
             }
             if ("0".equals(parentTypeCode)) {
                 //仅移网用户发送
-                noticeInfoList.add(noticeInfo);
+                noticeInfoList.add(smsOrder);
             }
         } else {
             //如果是智慧沃家融合用户，只发送群主用户，否则发送充值号码
-            String mainSN = payDatumService.getWJMainSN(payLog.getUserId(), relationType, writeOffRuleInfo.getSysdate(), payLog.getProvinceCode());
+            String mainSN = userParamRelService.getWJMainSN(payLog.getUserId(), relationType, headerGray);
             //如果是智慧沃家用户，设置短信接受号码是群主号码
             if (!StringUtil.isEmptyCheckNullStr(mainSN)) {
-                noticeInfo.setRecvObject(mainSN);
-                noticeInfoList.add(noticeInfo);
+                smsOrder.setRecvObject(mainSN);
+                noticeInfoList.add(smsOrder);
             } else if ("0".equals(parentTypeCode)) {
                 //仅移网用户发送
-                noticeInfoList.add(noticeInfo);
+                noticeInfoList.add(smsOrder);
             }
         }
         return noticeInfoList;
@@ -317,7 +306,7 @@ public class SmsServiceImpl implements SmsService {
      * @return
      */
     private boolean ifChannelSendMsg(String channelId, WriteOffRuleInfo writeOffRuleInfo) {
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.ASM_SENDSMS_CHANNELID);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_SENDSMS_CHANNELID);
         if (commPara != null && !StringUtil.isEmptyCheckNullStr(commPara.getParaCode1())
                 && commPara.getParaCode1().contains("|" + channelId + "|")) {
             return false;
@@ -362,8 +351,8 @@ public class SmsServiceImpl implements SmsService {
             }
         }
 
-        if (SmsStaticParamInfo.getAllMPSmsCond().containsKey(ActPayPubDef.DEFAULT_PROVINCE_CODE)) {
-            if (SmsStaticParamInfo.getAllMPSmsCond().get(ActPayPubDef.DEFAULT_PROVINCE_CODE).containsKey(tradeDefId)) {
+        if (SmsStaticParamInfo.getAllMPSmsCond().containsKey(ActingPayPubDef.DEFAULT_PROVINCE_CODE)) {
+            if (SmsStaticParamInfo.getAllMPSmsCond().get(ActingPayPubDef.DEFAULT_PROVINCE_CODE).containsKey(tradeDefId)) {
                 return true;
             }
         }
@@ -375,11 +364,11 @@ public class SmsServiceImpl implements SmsService {
      *
      * @param paymentId
      * @param mainUser
-     * @param writeSnapLog
+     * @param feeWriteSnapLog
      * @param writeOffRuleInfo
      * @return
      */
-    public long getSmTempletId(long paymentId, User mainUser, FeeWriteSnapLog writeSnapLog, WriteOffRuleInfo writeOffRuleInfo) {
+    public long getSmTempletId(long paymentId, User mainUser, FeeWriteSnapLog feeWriteSnapLog, WriteOffRuleInfo writeOffRuleInfo) {
         if (CollectionUtils.isEmpty(SmsStaticParamInfo.getAllMPSmsCond())) {
             throw new SkyArkException("没有配置储值方式对应的短信模板，请联系系统管理员");
         }
@@ -395,19 +384,19 @@ public class SmsServiceImpl implements SmsService {
                 if (10000 != smsTempletId) {
                     return smsTempletId;
                 } else {
-                    return getCommonSmTempletByProv(smsTempletId, mainUser, writeSnapLog, writeOffRuleInfo);
+                    return getCommonSmTempletByProv(smsTempletId, mainUser, feeWriteSnapLog, writeOffRuleInfo);
                 }
             }
         }
 
-        if (SmsStaticParamInfo.getAllMPSmsCond().containsKey(ActPayPubDef.DEFAULT_PROVINCE_CODE)) {
-            if (SmsStaticParamInfo.getAllMPSmsCond().get(ActPayPubDef.DEFAULT_PROVINCE_CODE).containsKey(paymentId)) {
-                smsTempletId = SmsStaticParamInfo.getAllMPSmsCond().get(ActPayPubDef.DEFAULT_PROVINCE_CODE).get(paymentId).getSmTempletId();
+        if (SmsStaticParamInfo.getAllMPSmsCond().containsKey(ActingPayPubDef.DEFAULT_PROVINCE_CODE)) {
+            if (SmsStaticParamInfo.getAllMPSmsCond().get(ActingPayPubDef.DEFAULT_PROVINCE_CODE).containsKey(paymentId)) {
+                smsTempletId = SmsStaticParamInfo.getAllMPSmsCond().get(ActingPayPubDef.DEFAULT_PROVINCE_CODE).get(paymentId).getSmTempletId();
                 if (smsTempletId != -1) {
                     if (10000 != smsTempletId) {
                         return smsTempletId;
                     } else {
-                        return getCommonSmTempletByProv(smsTempletId, mainUser, writeSnapLog, writeOffRuleInfo);
+                        return getCommonSmTempletByProv(smsTempletId, mainUser, feeWriteSnapLog, writeOffRuleInfo);
                     }
                 }
             }
@@ -420,18 +409,18 @@ public class SmsServiceImpl implements SmsService {
      *
      * @param oriSmTempLetId
      * @param mainUser
-     * @param writeSnapLog
+     * @param feeWriteSnapLog
      * @param writeOffRuleInfo
      * @return
      */
-    private long getCommonSmTempletByProv(long oriSmTempLetId, User mainUser, FeeWriteSnapLog writeSnapLog, WriteOffRuleInfo writeOffRuleInfo) {
+    private long getCommonSmTempletByProv(long oriSmTempLetId, User mainUser, FeeWriteSnapLog feeWriteSnapLog, WriteOffRuleInfo writeOffRuleInfo) {
         //实际发送的短信模板
         long smsTempletId = -1;
         //短信发送类型
         String smsType = "0";
         //欠费判断模式
         String oweFeeType = "0";
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.ASM_PAYFEESMS_OPTIMIZED);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_PAYFEESMS_OPTIMIZED);
         if (commPara != null) {
             smsType = commPara.getParaCode1();
             oweFeeType = commPara.getParaCode2();
@@ -444,21 +433,21 @@ public class SmsServiceImpl implements SmsService {
         if ("1".equals(smsType)) {
             if ("1".equals(oweFeeType)) {
                 //按照充值前后用户欠费情况发送短信
-                smsTempletId = getSmTempletIdByOweFee(smsType, oriSmTempLetId, writeSnapLog, provinceCode);
+                smsTempletId = getSmTempletIdByOweFee(smsType, oriSmTempLetId, feeWriteSnapLog, provinceCode);
             } else if ("2".equals(oweFeeType)) {
                 //按照充值前后用户结余情况发送短信
-                smsTempletId = getSmTempletIdByBalance(oriSmTempLetId, writeSnapLog.getAllBalance(),
-                        writeSnapLog.getAllNewBalance(), provinceCode);
+                smsTempletId = getSmTempletIdByBalance(oriSmTempLetId, feeWriteSnapLog.getAllBalance(),
+                        feeWriteSnapLog.getAllNewBalance(), provinceCode);
             } else {
                 throw new SkyArkException("短信新模板参数ASM_PAYFEESMS_OPTIMIZED的费用取值方式(PARA_CODE2)配置不正确，请检查！");
             }
         } else if ("2".equals(smsType)) {
-            smsTempletId = getSmTempletIdByOweFee(smsType, oriSmTempLetId, writeSnapLog, provinceCode);
+            smsTempletId = getSmTempletIdByOweFee(smsType, oriSmTempLetId, feeWriteSnapLog, provinceCode);
         } else if ("3".equals(smsType)) {
             smsTempletId = getSmTempLetIdAfterConvert(oriSmTempLetId, SmsStaticParamInfo.HASNOTOWEFEE_BEFORERECV_NEW, provinceCode);
         } else {
             //默认按照用户信用度和缴费后欠费情况选择短信模板
-            smsTempletId = getSmTempletIdByUserCreditAndOweFee(mainUser.getCreditValue(), writeSnapLog.getAllNewBOweFee(), oriSmTempLetId, provinceCode);
+            smsTempletId = getSmTempletIdByUserCreditAndOweFee(mainUser.getCreditValue(), feeWriteSnapLog.getAllNewBOweFee(), oriSmTempLetId, provinceCode);
         }
 
         return smsTempletId;
@@ -508,42 +497,42 @@ public class SmsServiceImpl implements SmsService {
      *
      * @param smsType
      * @param oriSmTempLetId
-     * @param writeSnapLog
+     * @param feeWriteSnapLog
      * @param provCode
      * @return
      */
-    private long getSmTempletIdByOweFee(String smsType, long oriSmTempLetId, FeeWriteSnapLog writeSnapLog, String provCode) {
+    private long getSmTempletIdByOweFee(String smsType, long oriSmTempLetId, FeeWriteSnapLog feeWriteSnapLog, String provCode) {
         //根据缴费前后欠费情况选择短信模板发送
         if ("1".equals(smsType)) {
             //缴费前无欠费
-            if (writeSnapLog.getAllBOweFee() <= 0) {
+            if (feeWriteSnapLog.getAllBOweFee() <= 0) {
                 return getSmTempLetIdAfterConvert(oriSmTempLetId,
                         SmsStaticParamInfo.BALANCE_BEFORERECV, provCode);
             }
             //缴费前有欠费，缴费后有欠费
-            if (0 < writeSnapLog.getAllBOweFee() && 0 < writeSnapLog.getAllNewBOweFee()) {
+            if (0 < feeWriteSnapLog.getAllBOweFee() && 0 < feeWriteSnapLog.getAllNewBOweFee()) {
                 return getSmTempLetIdAfterConvert(oriSmTempLetId,
                         SmsStaticParamInfo.OWED_AFTERRECV, provCode);
             }
             //缴费前有欠费，缴费后无欠费
-            if (0 < writeSnapLog.getAllBOweFee() && writeSnapLog.getAllNewBOweFee() <= 0) {
+            if (0 < feeWriteSnapLog.getAllBOweFee() && feeWriteSnapLog.getAllNewBOweFee() <= 0) {
                 return getSmTempLetIdAfterConvert(oriSmTempLetId,
                         SmsStaticParamInfo.BALANCE_AFTERERECV, provCode);
             }
         } else if ("2".equals(smsType)) {
             //根据缴费前后欠费情况选择新的短信模板发送
             //缴费前无欠费
-            if (writeSnapLog.getAllBOweFee() <= 0) {
+            if (feeWriteSnapLog.getAllBOweFee() <= 0) {
                 return getSmTempLetIdAfterConvert(oriSmTempLetId,
                         SmsStaticParamInfo.HASNOTOWEFEE_BEFORERECV_NEW, provCode);
             }
             //缴费前有欠费，缴费后有欠费
-            if (0 < writeSnapLog.getAllBOweFee() && 0 < writeSnapLog.getAllNewBOweFee()) {
+            if (0 < feeWriteSnapLog.getAllBOweFee() && 0 < feeWriteSnapLog.getAllNewBOweFee()) {
                 return getSmTempLetIdAfterConvert(oriSmTempLetId,
                         SmsStaticParamInfo.HASOWEFEE_AFTERRECV_NEW, provCode);
             }
             //缴费前有欠费，缴费后无欠费
-            if (0 < writeSnapLog.getAllBOweFee() && writeSnapLog.getAllNewBOweFee() <= 0) {
+            if (0 < feeWriteSnapLog.getAllBOweFee() && feeWriteSnapLog.getAllNewBOweFee() <= 0) {
                 return getSmTempLetIdAfterConvert(oriSmTempLetId,
                         SmsStaticParamInfo.HASNOTOWEFEE_AFTERERECV_NEW, provCode);
             }
@@ -592,62 +581,62 @@ public class SmsServiceImpl implements SmsService {
             return SmsStaticParamInfo.getAllMMMPSmsConvert().get(provCode).get(smsMode).get(oriSmTempLetId).getConvSmTempletId();
         }
 
-        if (SmsStaticParamInfo.getAllMMMPSmsConvert().containsKey(ActPayPubDef.DEFAULT_PROVINCE_CODE)
-                && SmsStaticParamInfo.getAllMMMPSmsConvert().get(ActPayPubDef.DEFAULT_PROVINCE_CODE).containsKey(smsMode)
-                && SmsStaticParamInfo.getAllMMMPSmsConvert().get(ActPayPubDef.DEFAULT_PROVINCE_CODE).get(smsMode).containsKey(oriSmTempLetId)) {
-            return SmsStaticParamInfo.getAllMMMPSmsConvert().get(ActPayPubDef.DEFAULT_PROVINCE_CODE).get(smsMode).get(oriSmTempLetId).getConvSmTempletId();
+        if (SmsStaticParamInfo.getAllMMMPSmsConvert().containsKey(ActingPayPubDef.DEFAULT_PROVINCE_CODE)
+                && SmsStaticParamInfo.getAllMMMPSmsConvert().get(ActingPayPubDef.DEFAULT_PROVINCE_CODE).containsKey(smsMode)
+                && SmsStaticParamInfo.getAllMMMPSmsConvert().get(ActingPayPubDef.DEFAULT_PROVINCE_CODE).get(smsMode).containsKey(oriSmTempLetId)) {
+            return SmsStaticParamInfo.getAllMMMPSmsConvert().get(ActingPayPubDef.DEFAULT_PROVINCE_CODE).get(smsMode).get(oriSmTempLetId).getConvSmTempletId();
         }
 
         return -1;
     }
 
-    private void genSmsFactor(NoticeInfo noticeInfo, FeePayLog payLog, WriteOffRuleInfo writeOffRuleInfo, FeeWriteSnapLog writeSnapLog) {
+    private void genSmsFactor(SmsOrder smsOrder, PayLog payLog, WriteOffRuleInfo writeOffRuleInfo, FeeWriteSnapLog feeWriteSnapLog) {
         //短信模板
         String sysdate = writeOffRuleInfo.getSysdate();
 
         //系统时间
-        noticeInfo.setSysdate(sysdate);
+        smsOrder.setSysdate(sysdate);
 
         //系统时间(*日*时*分)
-        noticeInfo.setSysdate2(sysdate.substring(8, 10) + "日" + sysdate.substring(11, 13) + "时" + sysdate.substring(14, 16) + "分");
+        smsOrder.setSysdate2(sysdate.substring(8, 10) + "日" + sysdate.substring(11, 13) + "时" + sysdate.substring(14, 16) + "分");
 
         //结清月份
-        noticeInfo.setMonth(String.valueOf(writeOffRuleInfo.getMaxAcctCycle().getCycleId() % 100));
+        smsOrder.setMonth(String.valueOf(writeOffRuleInfo.getMaxAcctCycle().getCycleId() % 100));
 
         //交费金额
-        noticeInfo.setRecvfee(genStandardFee(payLog.getRecvFee()));
+        smsOrder.setRecvfee(genStandardFee(payLog.getRecvFee()));
 
         //当前可用余额（扣除实时话费）
-        noticeInfo.setCurrentavlfee(genStandardFee(writeSnapLog.getCurrentAvlFee()));
+        smsOrder.setCurrentavlfee(genStandardFee(feeWriteSnapLog.getCurrentAvlFee()));
 
         //当前可用余额（扣除实时话费）
-        noticeInfo.setAllnewbalance(genStandardFee(writeSnapLog.getAllNewBalance() > 0 ? writeSnapLog.getAllNewBalance() : 0));
+        smsOrder.setAllnewbalance(genStandardFee(feeWriteSnapLog.getAllNewBalance() > 0 ? feeWriteSnapLog.getAllNewBalance() : 0));
 
         //当前欠费(含实时话费)
-        noticeInfo.setAllnewrowefee(genStandardFee(writeSnapLog.getAllNewBalance() < 0 ? (-writeSnapLog.getAllNewBalance()) : 0));
+        smsOrder.setAllnewrowefee(genStandardFee(feeWriteSnapLog.getAllNewBalance() < 0 ? (-feeWriteSnapLog.getAllNewBalance()) : 0));
 
         //账户可用余额
-        noticeInfo.setAllnewmoney(genStandardFee(writeSnapLog.getAllNewMoney()));
+        smsOrder.setAllnewmoney(genStandardFee(feeWriteSnapLog.getAllNewMoney()));
 
         //当前欠费
-        noticeInfo.setAllnewbowefee(genStandardFee(writeSnapLog.getAllNewBOweFee()));
+        smsOrder.setAllnewbowefee(genStandardFee(feeWriteSnapLog.getAllNewBOweFee()));
 
         //本月已消费（当前实时话费）
-        noticeInfo.setAllrealfee(genStandardFee(writeSnapLog.getCurRealFee()));
+        smsOrder.setAllrealfee(genStandardFee(feeWriteSnapLog.getCurRealFee()));
 
         StringBuilder content = new StringBuilder();
-        content.append("sysdate=" + noticeInfo.getSysdate())
-                .append(",sysdate2=" + noticeInfo.getSysdate2())
-                .append(",recvfee=" + noticeInfo.getRecvfee())
-                .append(",currentavlfee=" + noticeInfo.getCurrentavlfee())
-                .append(",allnewbalance=" + noticeInfo.getAllnewbalance())
-                .append(",allnewrowefee=" + noticeInfo.getAllnewrowefee())
-                .append(",allnewmoney=" + noticeInfo.getAllnewmoney())
-                .append(",allnewbowefee=" + noticeInfo.getAllnewbowefee())
-                .append(",allrealfee=" + noticeInfo.getAllrealfee())
-                .append(",month=" + noticeInfo.getMonth())
-                .append(",serialnumberOut=" + noticeInfo.getSerialnumberOut());
-        noticeInfo.setNoticeContent(content.toString());
+        content.append("sysdate=" + smsOrder.getSysdate())
+                .append(",sysdate2=" + smsOrder.getSysdate2())
+                .append(",recvfee=" + smsOrder.getRecvfee())
+                .append(",currentavlfee=" + smsOrder.getCurrentavlfee())
+                .append(",allnewbalance=" + smsOrder.getAllnewbalance())
+                .append(",allnewrowefee=" + smsOrder.getAllnewrowefee())
+                .append(",allnewmoney=" + smsOrder.getAllnewmoney())
+                .append(",allnewbowefee=" + smsOrder.getAllnewbowefee())
+                .append(",allrealfee=" + smsOrder.getAllrealfee())
+                .append(",month=" + smsOrder.getMonth())
+                .append(",serialnumberOut=" + smsOrder.getSerialnumberOut());
+        smsOrder.setNoticeContent(content.toString());
     }
 
     //以元为单位返回费用
@@ -667,7 +656,7 @@ public class SmsServiceImpl implements SmsService {
      * @return
      */
     private String getFRMsgSendType(WriteOffRuleInfo writeOffRuleInfo) {
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.ASM_PAYFEESMS_WXWJ);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_PAYFEESMS_WXWJ);
         //参数没有配置或者配置值不为1，只发送主号码
         if (commPara == null || !"1".equals(commPara.getParaCode1())) {
             return "0";
@@ -683,7 +672,7 @@ public class SmsServiceImpl implements SmsService {
      * @return
      */
     private String getRelationType(WriteOffRuleInfo writeOffRuleInfo) {
-        CommPara commPara = writeOffRuleInfo.getCommpara(PubCommParaDef.ASM_RHMSGSEND_TYPE);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_RHMSGSEND_TYPE);
         //参数没有配置或者配置值不为1，只发送主号码
         if (commPara != null && "1".equals(commPara.getParaCode1())) {
             return commPara.getParaCode2();

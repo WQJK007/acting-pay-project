@@ -4,6 +4,7 @@ import com.unicom.acting.pay.dao.SmsParamDao;
 import com.unicom.acting.pay.domain.SmsCond;
 import com.unicom.acting.pay.domain.SmsConvert;
 import com.unicom.acting.pay.domain.SmsTemplet;
+import com.unicom.skyark.component.jdbc.DbTypes;
 import com.unicom.skyark.component.jdbc.dao.impl.JdbcBaseDao;
 import com.unicom.skyark.component.util.StringUtil;
 import org.springframework.jdbc.core.RowMapper;
@@ -20,25 +21,25 @@ import java.util.List;
 @Repository
 public class SmsParamDaoImpl extends JdbcBaseDao implements SmsParamDao {
     @Override
-    public List<SmsCond> getProvSmsCond(String provinceCode) {
+    public List<SmsCond> getProvSmsCond() {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT TRADE_DEF_ID,SM_TEMPLET_ID,COND_ID,PROVINCE_CODE FROM TD_B_SMS_COND");
-        return this.getJdbcTemplate(provinceCode).query(sql.toString(), new SmsCondRowMapper());
+        return this.getJdbcTemplate(DbTypes.ACT_PARA_RDS).query(sql.toString(), new SmsCondRowMapper());
     }
 
     @Override
-    public List<SmsConvert> getSmsConvertId(String provinceCode) {
+    public List<SmsConvert> getSmsConvertId() {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ORI_SM_TEMPLET_ID,SMS_TYPE,CONV_SM_TEMPLET_ID,PROVINCE_CODE FROM TD_B_SMS_CONVERT");
-        return this.getJdbcTemplate(provinceCode).query(sql.toString(), new SmsConvertRowMapper());
+        return this.getJdbcTemplate(DbTypes.ACT_PARA_RDS).query(sql.toString(), new SmsConvertRowMapper());
     }
 
     @Override
-    public List<SmsTemplet> getSmsTemplet(String provinceCode) {
+    public List<SmsTemplet> getSmsTemplet() {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT SM_TEMPLET_ID,SM_TEMPLET_NAME,SM_TEMPLET_CONTEXT,");
         sql.append("SM_TEMPLET_TYPE,SM_KIND_CODE FROM TD_B_SMS_TEMPLET");
-        return this.getJdbcTemplate(provinceCode).query(sql.toString(), new SmsTempletRowMapper());
+        return this.getJdbcTemplate(DbTypes.ACT_PARA_RDS).query(sql.toString(), new SmsTempletRowMapper());
     }
 
     private class SmsCondRowMapper implements RowMapper<SmsCond> {

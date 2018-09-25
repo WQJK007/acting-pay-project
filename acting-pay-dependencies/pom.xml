@@ -37,6 +37,28 @@
                 <artifactId>acting-pay-recvfee</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <dependency>
+                <groupId>com.unicom.acting.pay</groupId>
+                <artifactId>acting-pay-backfee</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.unicom.acting.pay</groupId>
+                <artifactId>acting-pay-transfee</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.unicom.acting.pay</groupId>
+                <artifactId>acting-pay-cancelfee</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.unicom.acting.springbatch</groupId>
+                <artifactId>acting-batch-dependencies</artifactId>
+                <version>${acting-batch.revision}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -74,7 +96,6 @@
                 <inherited>false</inherited>
                 <executions>
                     <execution>
-                        <!-- Tidy up all POMs before they are published -->
                         <id>flatten</id>
                         <phase>process-resources</phase>
                         <goals>
@@ -101,7 +122,6 @@
                 <inherited>false</inherited>
                 <executions>
                     <execution>
-                        <!-- Attach effective POM -->
                         <id>attach-artifacts</id>
                         <phase>package</phase>
                         <goals>

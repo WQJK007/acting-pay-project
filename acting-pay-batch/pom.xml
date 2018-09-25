@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>acting-pay-parent</artifactId>
+        <groupId>com.unicom.acting.pay</groupId>
+        <version>${revision}</version>
+        <relativePath>../acting-pay-parent</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>acting-pay-batch</artifactId>
+    <name>acting-pay-batch</name>
+    <description>cBSS系统账务中心批处理-缴费核心</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.unicom.skyark.component</groupId>
+            <artifactId>skyark-component-batch</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.skyark.component</groupId>
+            <artifactId>skyark-component-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.acting.pay</groupId>
+            <artifactId>acting-pay-writeoff</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.acting.springbatch</groupId>
+            <artifactId>acting-batch-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.acting.springbatch</groupId>
+            <artifactId>acting-batch-userdatum</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.unicom.acting.bill</groupId>
+            <artifactId>acting-bill-realbill</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
+    </dependencies>
+</project>

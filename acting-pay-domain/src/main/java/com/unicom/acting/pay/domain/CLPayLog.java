@@ -36,6 +36,7 @@ public class CLPayLog {
     private String rsrvInfo1;
     private String rsrvInfo2;
     private String rsrvInfo3;
+    private String clCancelPayId;
 
     public CLPayLog() {
         chargeId = "";
@@ -68,6 +69,7 @@ public class CLPayLog {
         rsrvInfo1 = "";
         rsrvInfo2 = "";
         rsrvInfo3 = "";
+        clCancelPayId = "";
     }
 
     public String getChargeId() {
@@ -310,6 +312,14 @@ public class CLPayLog {
         this.rsrvInfo3 = rsrvInfo3;
     }
 
+    public String getClCancelPayId() {
+        return clCancelPayId;
+    }
+
+    public void setClCancelPayId(String clCancelPayId) {
+        this.clCancelPayId = clCancelPayId;
+    }
+
     @Override
     public String toString() {
         return "CLPayLog{" +
@@ -343,6 +353,7 @@ public class CLPayLog {
                 ", rsrvInfo1='" + rsrvInfo1 + '\'' +
                 ", rsrvInfo2='" + rsrvInfo2 + '\'' +
                 ", rsrvInfo3='" + rsrvInfo3 + '\'' +
+                ", clCancelPayId='" + clCancelPayId + '\'' +
                 '}';
     }
 }

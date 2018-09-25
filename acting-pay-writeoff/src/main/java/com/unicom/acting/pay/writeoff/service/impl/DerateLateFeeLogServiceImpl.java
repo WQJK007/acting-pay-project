@@ -2,7 +2,7 @@ package com.unicom.acting.pay.writeoff.service.impl;
 
 import com.unicom.acting.fee.domain.FeeDerateLateFeeLog;
 import com.unicom.acting.pay.dao.DerateLateFeeLogDao;
-import com.unicom.acting.pay.domain.ActPayCommparaDef;
+import com.unicom.acting.pay.domain.ActingPayCommparaDef;
 import com.unicom.skyark.component.exception.SkyArkException;
 import com.unicom.acting.fee.domain.CommPara;
 import com.unicom.acting.fee.domain.WriteOffRuleInfo;
@@ -23,16 +23,16 @@ public class DerateLateFeeLogServiceImpl implements DerateLateFeeLogService {
     private DerateLateFeeLogDao derateLateFeeLogPayDao;
 
     @Override
-    public int updDerateLateFeeLogByDerateId(String derateId, String operateId, long usedDerateFee, char oldUseTag, String newUseTag, String provinceCode) {
-        return derateLateFeeLogPayDao.updDerateLateFeeLogByDerateId(derateId, operateId, usedDerateFee, oldUseTag, newUseTag, provinceCode);
+    public int updDerateLateFeeLogByDerateId(String derateId, String operateId, long usedDerateFee, char oldUseTag, String newUseTag) {
+        return derateLateFeeLogPayDao.updDerateLateFeeLogByDerateId(derateId, operateId, usedDerateFee, oldUseTag, newUseTag);
     }
 
     @Override
-    public void updDerateLateFeeLog(List<FeeDerateLateFeeLog> derateLateFeeLogs, WriteOffRuleInfo writeOffRuleInfo, Set<Integer> writeOffCycle, String chargeId, String provinceCode) {
+    public void updDerateLateFeeLog(List<FeeDerateLateFeeLog> derateLateFeeLogs, WriteOffRuleInfo writeOffRuleInfo, Set<Integer> writeOffCycle, String chargeId) {
         if (CollectionUtils.isEmpty(derateLateFeeLogs)) {
             return;
         }
-        CommPara commPara = writeOffRuleInfo.getCommpara(ActPayCommparaDef.ASM_LATEUSE_PERSIST);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_LATEUSE_PERSIST);
         if (commPara == null) {
             throw new SkyArkException("ASM_LATEUSE_PERSIST参数没有配置!");
         }
@@ -50,7 +50,7 @@ public class DerateLateFeeLogServiceImpl implements DerateLateFeeLogService {
                 if (writeOffCycle.contains(derateLateFeeLog.getCycleId())) {
                     if (updDerateLateFeeLogByDerateId(derateLateFeeLog.getDerateId(),
                             chargeId, derateLateFeeLog.getUsedDerateFee(),
-                            derateLateFeeLog.getOldUseTag(), newUseTag, provinceCode) == 0) {
+                            derateLateFeeLog.getOldUseTag(), newUseTag) == 0) {
                         throw new SkyArkException("更新违约金减免记录失败!derateId="+derateLateFeeLog.getDerateId());
                     }
                 }
@@ -63,7 +63,7 @@ public class DerateLateFeeLogServiceImpl implements DerateLateFeeLogService {
         if (CollectionUtils.isEmpty(derateLateFeeLogs)) {
             return;
         }
-        CommPara commPara = writeOffRuleInfo.getCommpara(ActPayCommparaDef.ASM_LATEUSE_PERSIST);
+        CommPara commPara = writeOffRuleInfo.getCommpara(ActingPayCommparaDef.ASM_LATEUSE_PERSIST);
         if (commPara == null) {
             throw new SkyArkException("ASM_LATEUSE_PERSIST参数没有配置!");
         }

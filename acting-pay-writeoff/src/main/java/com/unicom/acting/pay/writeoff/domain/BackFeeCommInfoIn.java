@@ -11,6 +11,30 @@ import java.util.List;
  */
 public class BackFeeCommInfoIn extends TradeCommInfoIn {
     /**
+     * @see #batchId
+     * 批次号
+     */
+    private String batchId;
+
+    /**
+     * @see #asynDealTag
+     * 异步处理标识
+     */
+    private String asynDealTag;
+
+    /**
+     * @see #workTypeCode
+     * 异步工单类型
+     */
+    private String workTypeCode;
+
+    /**
+     * @see #forckTag
+     * 强制清退
+     */
+    private String forckTag;
+
+    /**
      * @see #backType  清退类型
      * 0 按总额金额
      * 1按特定账本科目类型清退
@@ -18,11 +42,11 @@ public class BackFeeCommInfoIn extends TradeCommInfoIn {
      */
     private String backType;
     /**
-     * @see #backDepositType
+     * @see #backDepositCode
      * 按特定账本科目类型清退的账本科目类型
      * 主要针对缴费站、小额包年功能按特定账本科目类型进行清退
      */
-    private String backDepositType;
+    private String backDepositCode;
     /**
      * @see #tradeDepositInfos 按账本实例清退时账本清退明细信息
      * 主要包括待清退账本实例标识、清退金额、是否强制清退等信息
@@ -49,8 +73,45 @@ public class BackFeeCommInfoIn extends TradeCommInfoIn {
      */
     private char decuctInvTag;
 
+    private List<TradeDepositInfo> backDepositInfos;
+
+
     public BackFeeCommInfoIn() {
+        backType = "2";
         decuctInvTag = '1';
+    }
+
+    public String getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(String batchId) {
+        this.batchId = batchId;
+    }
+
+    public String getAsynDealTag() {
+        return asynDealTag;
+    }
+
+
+    public void setAsynDealTag(String asynDealTag) {
+        this.asynDealTag = asynDealTag;
+    }
+
+    public String getWorkTypeCode() {
+        return workTypeCode;
+    }
+
+    public void setWorkTypeCode(String workTypeCode) {
+        this.workTypeCode = workTypeCode;
+    }
+
+    public String getForckTag() {
+        return forckTag;
+    }
+
+    public void setForckTag(String forckTag) {
+        this.forckTag = forckTag;
     }
 
     public String getBackType() {
@@ -61,12 +122,12 @@ public class BackFeeCommInfoIn extends TradeCommInfoIn {
         this.backType = backType;
     }
 
-    public String getBackDepositType() {
-        return backDepositType;
+    public String getBackDepositCode() {
+        return backDepositCode;
     }
 
-    public void setBackDepositType(String backDepositType) {
-        this.backDepositType = backDepositType;
+    public void setBackDepositCode(String backDepositCode) {
+        this.backDepositCode = backDepositCode;
     }
 
     public List<TradeDepositInfo> getTradeDepositInfos() {
@@ -99,5 +160,13 @@ public class BackFeeCommInfoIn extends TradeCommInfoIn {
 
     public void setDecuctInvTag(char decuctInvTag) {
         this.decuctInvTag = decuctInvTag;
+    }
+
+    public List<TradeDepositInfo> getBackDepositInfos() {
+        return backDepositInfos;
+    }
+
+    public void setBackDepositInfos(List<TradeDepositInfo> backDepositInfos) {
+        this.backDepositInfos = backDepositInfos;
     }
 }

@@ -5,10 +5,22 @@
     <parent>
         <artifactId>skyark-component-parent</artifactId>
         <groupId>com.unicom.skyark.component</groupId>
-        <version>1.0.0.RELEASE</version>
+        <version>1.0.0-SNAPSHOT</version>
         <relativePath/>
     </parent>
+
     <modelVersion>4.0.0</modelVersion>
+
+    <properties>
+        <revision>1.0.0-SNAPSHOT</revision>
+        <acting-fee.version>1.0.0-SNAPSHOT</acting-fee.version>
+        <acting-batch.revision>1.0.0-SNAPSHOT</acting-batch.revision>
+        <java.version>1.8</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
 
     <groupId>com.unicom.acting.pay</groupId>
     <artifactId>acting-pay-project</artifactId>
@@ -16,6 +28,23 @@
     <packaging>pom</packaging>
     <name>acting-pay-project</name>
     <description>cBSS系统账务中心交易类业务组件工程</description>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>boot-repackage</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+
     <modules>
         <module>acting-pay-dependencies</module>
         <module>acting-pay-parent</module>
@@ -23,16 +52,26 @@
         <module>acting-pay-dao</module>
         <module>acting-pay-writeoff</module>
         <module>acting-pay-recvfee</module>
+        <module>acting-pay-backfee</module>
+        <module>acting-pay-transfee</module>
+        <module>acting-pay-cancelfee</module>
+        <module>acting-pay-batch</module>
     </modules>
 
-    <properties>
-        <java.version>1.8</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- 版本管理 -->
-        <revision>1.0.0.RELEASE</revision>
-        <acting-fee.version>1.0.0.RELEASE</acting-fee.version>
-    </properties>
+
+    <repositories>
+        <repository>
+            <id>nexus</id>
+            <name>nexus</name>
+            <url>http://10.124.142.81/nexus/content/groups/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
+
 </project>

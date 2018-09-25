@@ -1,8 +1,8 @@
 package com.unicom.acting.pay.writeoff.service;
 
-import com.unicom.acting.fee.domain.FeePayLogDmn;
 import com.unicom.acting.pay.domain.AsynWork;
 import com.unicom.acting.pay.domain.AsynWorkMQInfo;
+import com.unicom.acting.pay.domain.PayLogDmn;
 import com.unicom.acting.pay.domain.PayLogDmnMQInfo;
 import com.unicom.skyark.component.service.IBaseService;
 
@@ -18,27 +18,17 @@ public interface TradeAsynOrderService extends IBaseService {
      * @param payLogDmn
      * @return
      */
-    PayLogDmnMQInfo genPayLogDmnMQInfo(FeePayLogDmn payLogDmn);
+    PayLogDmnMQInfo genPayLogDmnMQInfo(PayLogDmn payLogDmn);
 
     /**
      * 生成账务后台工单表记录
-     *
-     * @param feePayLogDmn
+     * @param payLogDmn
      * @param dbType
-     * @param provinceCode
+     * @param routeValue
      * @return
      */
-    long insertPayLogDmn(FeePayLogDmn feePayLogDmn, String dbType, String provinceCode);
+    long insertPayLogDmn(PayLogDmn payLogDmn, String dbType, String routeValue);
 
-    /**
-     * 新增异步缴费工单
-     *
-     * @param asynWork
-     * @param dbType
-     * @param provinceCode
-     * @return
-     */
-    int insertAsynWork(AsynWork asynWork, String dbType, String provinceCode);
 
     /**
      * 生成异步工单工单MQ信息
@@ -47,4 +37,17 @@ public interface TradeAsynOrderService extends IBaseService {
      * @return
      */
     AsynWorkMQInfo genAsynWorkMQInfo(AsynWork asynWork);
+
+
+    /**
+     * 新增异步缴费工单
+     *
+     * @param asynWork
+     * @param dbType
+     * @param routeValue
+     * @return
+     */
+    int insertAsynWork(AsynWork asynWork, String dbType, String routeValue);
+
+
 }

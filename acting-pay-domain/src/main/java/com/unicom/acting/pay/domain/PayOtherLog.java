@@ -26,6 +26,8 @@ public class PayOtherLog {
     private long rsrvFee1;
     private long rsrvFee2;
     private String provinceCode;
+    private String acctId;
+    private String userId;
 
     public String getChargeId() {
         return chargeId;
@@ -187,6 +189,22 @@ public class PayOtherLog {
         this.provinceCode = provinceCode;
     }
 
+    public String getAcctId() {
+        return acctId;
+    }
+
+    public void setAcctId(String acctId) {
+        this.acctId = acctId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
     @Override
     public String toString() {
         return "PayOtherLog{" +
@@ -210,6 +228,8 @@ public class PayOtherLog {
                 ", rsrvFee1=" + rsrvFee1 +
                 ", rsrvFee2=" + rsrvFee2 +
                 ", provinceCode='" + provinceCode + '\'' +
+                ", acctId='" + acctId + '\'' +
+                ", userId='" + userId + '\'' +
                 '}';
     }
 }

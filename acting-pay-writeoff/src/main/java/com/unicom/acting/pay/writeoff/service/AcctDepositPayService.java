@@ -67,5 +67,4 @@ public interface AcctDepositPayService extends IBaseService {
     void updateAcctDepositInfo(List<FeeAccountDeposit> feeAccountDeposits, WriteOffRuleInfo writeOffRuleInfo, String provinceCode);
 
     void updateDepositInfo(List<FeeAccountDeposit> feeAccountDeposits, long acctOweFee, String sysdate, int maxAcctCycleId);
-
 }

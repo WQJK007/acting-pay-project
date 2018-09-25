@@ -1,8 +1,7 @@
 package com.unicom.acting.pay.writeoff.service;
 
 import com.unicom.acting.fee.domain.*;
-import com.unicom.acting.pay.domain.AccessLogMQInfo;
-import com.unicom.acting.pay.domain.PayLogMQInfo;
+import com.unicom.acting.pay.domain.*;
 import com.unicom.acting.pay.domain.PayOtherLog;
 import com.unicom.skyark.component.service.IBaseService;
 
@@ -17,29 +16,39 @@ import java.util.List;
  */
 public interface TradeCommLogService extends IBaseService {
     /**
+     * 账务费用交易日志公共入库方法
+     *
+     * @param tradeCommResultInfo
+     */
+    void tradeFeeCommInDB(TradeCommResultInfo tradeCommResultInfo);
+
+    /**
      * 新增缴费日志记录
      *
-     * @param feePayLog
-     * @param provinceCode
+     * @param payLog
      */
-    void insertPayLog(FeePayLog feePayLog, String provinceCode);
+    void insertPayLog(PayLog payLog);
 
     /**
      * 生成代收费日志
      *
-     * @param feeCLPayLogs
-     * @param provinceCode
+     * @param clPayLogs
      */
-    void insertCLPayLog(List<FeeCLPayLog> feeCLPayLogs, String provinceCode);
+    void insertCLPayLog(List<CLPayLog> clPayLogs);
 
     /**
      * 收费其他信息日志
      *
      * @param payOtherLog
-     * @param provinceCode
      */
-    long insertPayOtherLog(PayOtherLog payOtherLog, String provinceCode);
+    void insertPayOtherLog(PayOtherLog payOtherLog);
 
+    /**
+     * 交易关联日志
+     *
+     * @param chargeRelation
+     */
+    void insertChargerelation(ChargeRelation chargeRelation);
 
     /**
      * 提取销账日志信息
@@ -55,10 +64,9 @@ public interface TradeCommLogService extends IBaseService {
     /**
      * 销账日志入库
      *
-     * @param feeWriteOffLogs
-     * @param provinceCode
+     * @param writeOffLogs
      */
-    void insertWriteOffLog(List<FeeWriteOffLog> feeWriteOffLogs, String provinceCode);
+    void insertWriteOffLog(List<WriteOffLog> writeOffLogs);
 
     /**
      * 提取入库的存取款记录
@@ -74,32 +82,30 @@ public interface TradeCommLogService extends IBaseService {
     /**
      * 新增存取款日志记录
      *
-     * @param feeAccessLogs 存取款记录
-     * @param provinceCode  账户归属省份编码
+     * @param accessLogs 存取款记录
      */
-    void insertAccessLog(List<FeeAccessLog> feeAccessLogs, String provinceCode);
+    void insertAccessLog(List<AccessLog> accessLogs);
 
     /**
      * 新增销账快照表记录
      *
-     * @param feeWriteSnapLog
-     * @param provinceCode
+     * @param writeSnapLog
      */
-    void insertWriteSnapLog(FeeWriteSnapLog feeWriteSnapLog, String provinceCode);
+    void insertWriteSnapLog(WriteSnapLog writeSnapLog);
 
     /**
      * 根据缴费日志生成PayLogMQ对象信息
      *
-     * @param feePaylog
+     * @param Paylog
      * @return
      */
-    PayLogMQInfo genPayLogMQInfo(FeePayLog feePaylog);
+    PayLogMQInfo genPayLogMQInfo(PayLog Paylog);
 
     /**
      * 根据存取款日志生成AccessLogMQ对象信息
      *
-     * @param feeAccessLogs
+     * @param accessLogs
      * @return
      */
-    List<AccessLogMQInfo> genAccessLogMQInfo(List<FeeAccessLog> feeAccessLogs);
+    List<AccessLogMQInfo> genAccessLogMQInfo(List<AccessLog> accessLogs);
 }

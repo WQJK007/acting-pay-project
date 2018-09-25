@@ -15,6 +15,7 @@
     <name>acting-pay-parent</name>
     <description>cBSS系统账务中心交易类公共业务组件-父模块</description>
 
+
     <build>
         <pluginManagement>
             <plugins>
@@ -248,7 +249,6 @@
                 <inherited>true</inherited>
                 <executions>
                     <execution>
-                        <!-- Tidy up all POMs before they are published -->
                         <id>flatten</id>
                         <phase>process-resources</phase>
                         <goals>
@@ -295,9 +295,6 @@
                                 <requireMavenVersion>
                                     <version>[3.5.0,)</version>
                                 </requireMavenVersion>
-                                <!--<requireProperty>
-                                    <property>main.basedir</property>
-                                </requireProperty>-->
                                 <requireProperty>
                                     <property>project.name</property>
                                 </requireProperty>
@@ -332,18 +329,6 @@
                     </archive>
                 </configuration>
             </plugin>
-            <!--<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>-->
         </plugins>
         <resources>
             <resource>

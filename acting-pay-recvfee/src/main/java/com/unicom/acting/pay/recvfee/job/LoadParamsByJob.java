@@ -1,9 +1,8 @@
 package com.unicom.acting.pay.recvfee.job;
 
-import com.unicom.acting.fee.domain.PubCommParaDef;
 import com.unicom.acting.fee.writeoff.service.CommParaFeeService;
 import com.unicom.acting.fee.writeoff.service.WriteOffRuleService;
-import com.unicom.acting.pay.domain.ActPayPubDef;
+import com.unicom.acting.pay.domain.ActingPayCommparaDef;
 import com.unicom.acting.pay.writeoff.service.SmsService;
 import com.unicom.skyark.component.jdbc.DbTypes;
 import org.slf4j.Logger;
@@ -41,14 +40,14 @@ public class LoadParamsByJob {
     private void initParam() {
         //获取系统当前时间戳
         String currTimeStamp = commParaService.getParamTimeStamp(
-                PubCommParaDef.ASM_PARAM_TIMESTAMP, DbTypes.ACT_PARA_RDS);
+                ActingPayCommparaDef.ASM_PARAM_TIMESTAMP);
         logger.info("timeStamp = " + timeStamp + ",currTimeStamp = " + currTimeStamp);
         if ("".equals(timeStamp) || !currTimeStamp.equals(timeStamp)) {
             long startTime = System.currentTimeMillis();   //获取开始时间
             //加载缴费销账相关参数
-            writeOffRuleService.loadWriteOffParam(DbTypes.ACT_PARA_RDS);
+            writeOffRuleService.loadWriteOffParam();
             //加载短信相关参数
-            smsService.loadSmsParam(DbTypes.ACT_PARA_RDS);
+            smsService.loadSmsParam();
 
             if ("".equals(timeStamp) && "".equals(currTimeStamp)) {
                 timeStamp = "1900-01-01 01:01:01";

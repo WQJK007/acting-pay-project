@@ -17,11 +17,9 @@ public interface DerateLateFeeLogDao extends IBaseDao {
      * @param usedDerateFee
      * @param oldUseTag
      * @param newUseTag
-     * @param provinceCode
      * @return
      */
-    int updDerateLateFeeLogByDerateId(String derateId, String operateId,
-                                      long usedDerateFee, char oldUseTag,
-                                      String newUseTag, String provinceCode);
+    int updDerateLateFeeLogByDerateId(String derateId, String operateId, long usedDerateFee,
+                                      char oldUseTag, String newUseTag);
 
 }

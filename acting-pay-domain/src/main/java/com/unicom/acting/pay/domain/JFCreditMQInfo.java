@@ -1,6 +1,6 @@
 package com.unicom.acting.pay.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.unicom.skyark.component.common.SkyArkPropertyNamingStrategy;
 
@@ -12,7 +12,7 @@ import java.util.List;
  * @author Wangkh
  */
 @JsonNaming(SkyArkPropertyNamingStrategy.class)
-@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class JFCreditMQInfo {
     private String acctId;
     private String tradeTypeCode;

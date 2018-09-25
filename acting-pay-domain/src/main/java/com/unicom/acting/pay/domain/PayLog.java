@@ -1,11 +1,14 @@
 package com.unicom.acting.pay.domain;
 
+import com.unicom.skyark.component.common.constants.SysTypes;
+import com.unicom.skyark.component.exception.SkyArkException;
+
 /**
  * 缴费日志对象，主要用于新增TF_B_PAYLOG表记录
  *
  * @author Wangkh
  */
-public class PayLog {
+public class PayLog  implements Cloneable {
     private String chargeId;
     private String eparchyCode;
     private String cityCode;
@@ -124,6 +127,14 @@ public class PayLog {
         provinceCode = "";
     }
 
+    @Override
+    public PayLog clone(){
+        try {
+            return (PayLog)super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new SkyArkException(SysTypes.BUSI_ERROR_CODE, "PayLog clone error");
+        }
+    }
     public String getChargeId() {
         return chargeId;
     }

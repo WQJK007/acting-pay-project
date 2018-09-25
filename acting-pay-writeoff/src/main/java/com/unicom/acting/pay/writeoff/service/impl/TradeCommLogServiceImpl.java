@@ -10,7 +10,6 @@ import com.unicom.acting.pay.domain.*;
 import com.unicom.acting.pay.domain.PayOtherLog;
 import com.unicom.acting.pay.writeoff.service.TradeCommLogService;
 import com.unicom.skyark.component.exception.SkyArkException;
-import com.unicom.skyark.component.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,78 +35,72 @@ public class TradeCommLogServiceImpl implements TradeCommLogService {
 
 
     @Override
-    public void insertPayLog(FeePayLog feePayLog, String provinceCode) {
-        PayLog payLog = new PayLog();
-        payLog.setProvinceCode(feePayLog.getProvinceCode());
-        payLog.setEparchyCode(feePayLog.getEparchyCode());
-        payLog.setCityCode(feePayLog.getCityCode());
-        payLog.setCustId(feePayLog.getCustId());
-        payLog.setAcctId(feePayLog.getAcctId());
-        payLog.setUserId(feePayLog.getUserId());
-        payLog.setSerialNumber(feePayLog.getSerialNumber());
-        payLog.setNetTypeCode(feePayLog.getNetTypeCode());
-        payLog.setChargeId(feePayLog.getChargeId());
-        payLog.setExtendTag(feePayLog.getExtendTag());
-        payLog.setOuterTradeId(feePayLog.getOuterTradeId());
-        payLog.setChannelId(feePayLog.getChannelId());
-        payLog.setPaymentId(feePayLog.getPaymentId());
-        payLog.setPaymentOp(feePayLog.getPaymentOp());
-        payLog.setPayFeeModeCode(feePayLog.getPayFeeModeCode());
-        payLog.setLimitMoney(feePayLog.getLimitMoney());
-        payLog.setRecvTime(feePayLog.getRecvTime());
-        payLog.setRecvFee(feePayLog.getRecvFee());
-        payLog.setRecvProvinceCode(feePayLog.getRecvProvinceCode());
-        payLog.setRecvEparchyCode(feePayLog.getRecvEparchyCode());
-        payLog.setRecvCityCode(feePayLog.getCityCode());
-        payLog.setRecvDepartId(feePayLog.getRecvDepartId());
-        payLog.setRecvStaffId(feePayLog.getRecvStaffId());
-        payLog.setCancelTag(feePayLog.getCancelTag());
-        payLog.setRemark(StringUtil.isEmptyCheckNullStr(feePayLog.getRemark())?null : feePayLog.getRemark());
-        payLog.setPaymentRuleId(feePayLog.getPaymentRuleId());
-        payLog.setActionCode(feePayLog.getActionCode());
-        payLog.setPaymentReasonCode(feePayLog.getPaymentReasonCode());
-        payLog.setActionEventId(feePayLog.getActionEventId());
-        payLog.setNpTag(feePayLog.getNpTag());
-        if (payLogDao.insertPayLog(payLog, provinceCode) == 0) {
-            throw new SkyArkException("新增缴费日志失败！chargeId=" + payLog.getChargeId());
+    public void tradeFeeCommInDB(TradeCommResultInfo tradeCommResultInfo) {
+        logger.info("账务费用交易公共日志入库开始");
+        //缴费日志入库
+        payLogDao.insertPayLog(tradeCommResultInfo.getPayLog());
+        //省份代收日志入库
+        if (!CollectionUtils.isEmpty(tradeCommResultInfo.getClPayLogs())) {
+            payLogDao.insertCLPayLog(tradeCommResultInfo.getClPayLogs());
         }
+        //存取款日志
+        if (!CollectionUtils.isEmpty(tradeCommResultInfo.getAccessLogs())) {
+            accessLogDao.insertAccessLog(tradeCommResultInfo.getAccessLogs());
+        }
+        //销账日志
+        if (!CollectionUtils.isEmpty(tradeCommResultInfo.getWriteOffLogs())) {
+            writeOffLogDao.insertWriteOffLog(tradeCommResultInfo.getWriteOffLogs());
+        }
+        //销账快照
+        writeSnapLogDao.insertWriteSnapLog(tradeCommResultInfo.getWriteSnapLog());
+        logger.info("账务费用交易公共日志入库结束");
     }
 
     @Override
-    public void insertCLPayLog(List<FeeCLPayLog> feeCLPayLogs, String provinceCode) {
-        if (CollectionUtils.isEmpty(feeCLPayLogs)) {
+    public void insertPayLog(PayLog payLog) {
+        try {
+            if (payLogDao.insertPayLog(payLog) == 0) {
+                throw new SkyArkException("新增缴费日志失败！chargeId=" + payLog.getChargeId());
+            }
+        } catch (Exception ex) {
+            throw new SkyArkException("新增缴费日志失败！chargeId=" + payLog.getChargeId() + ",ExceptionInfo = " + ex.getMessage());
+        }
+
+    }
+
+    @Override
+    public void insertCLPayLog(List<CLPayLog> clPayLogs) {
+        if (CollectionUtils.isEmpty(clPayLogs)) {
             return;
         }
-        List<CLPayLog> clPayLogs = new ArrayList(feeCLPayLogs);
-        for (FeeCLPayLog feeCLPayLog : feeCLPayLogs) {
-            CLPayLog clPayLog = new CLPayLog();
-            clPayLog.setClPaylogId(feeCLPayLog.getClPaylogId());
-            clPayLog.setProvinceCode(feeCLPayLog.getProvinceCode());
-            clPayLog.setEparchyCode(feeCLPayLog.getEparchyCode());
-            clPayLog.setAreaCode(feeCLPayLog.getAreaCode());
-            clPayLog.setNetTypeCode(feeCLPayLog.getNetTypeCode());
-            clPayLog.setAcctId(feeCLPayLog.getAcctId());
-            clPayLog.setUserId(feeCLPayLog.getUserId());
-            clPayLog.setOldAcctId(feeCLPayLog.getOldAcctId());
-            clPayLog.setOldUserId(feeCLPayLog.getOldUserId());
-            clPayLog.setSerialNumber(feeCLPayLog.getSerialNumber());
-            clPayLog.setPaymentId(feeCLPayLog.getPaymentId());
-            clPayLog.setRecvFee(feeCLPayLog.getRecvFee());
-            clPayLog.setChargeId(feeCLPayLog.getChargeId());
-            clPayLog.setOuterTradeId(feeCLPayLog.getOuterTradeId());
-            clPayLog.setRecvTime(feeCLPayLog.getRecvTime());
-            clPayLog.setRecvStaffId(feeCLPayLog.getRecvStaffId());
-            clPayLog.setRecvDepartId(feeCLPayLog.getRecvDepartId());
-            clPayLog.setRecvEparchyCode(feeCLPayLog.getRecvEparchyCode());
-            clPayLog.setRecvCityCode(feeCLPayLog.getRecvCityCode());
-            clPayLogs.add(clPayLog);
+        try {
+            payLogDao.insertCLPayLog(clPayLogs);
+        } catch (Exception ex) {
+            throw new SkyArkException("新增省份代收费日志失败！chargeId=" + clPayLogs.get(0).getChargeId() + ",ExceptionInfo = " + ex.getMessage());
         }
-        payLogDao.insertCLPayLog(clPayLogs, provinceCode);
+
     }
 
     @Override
-    public long insertPayOtherLog(PayOtherLog payOtherLog, String provinceCode) {
-        return payLogDao.insertPayOtherLog(payOtherLog, provinceCode);
+    public void insertPayOtherLog(PayOtherLog payOtherLog) {
+        try {
+            if (payLogDao.insertPayOtherLog(payOtherLog) == 0) {
+                throw new SkyArkException("新增缴费其他日志失败！chargeId=" + payOtherLog.getChargeId());
+            }
+        } catch (Exception ex) {
+            throw new SkyArkException("新增缴费其他日志失败！chargeId=" + payOtherLog.getChargeId() + ",ExceptionInfo = " + ex.getMessage());
+        }
+    }
+
+    @Override
+    public void insertChargerelation(ChargeRelation chargeRelation) {
+        try {
+            if (payLogDao.insertChargerelation(chargeRelation) == 0) {
+                throw new SkyArkException("新增交易关联日志失败！chargeId=" + chargeRelation.getId());
+            }
+        } catch (Exception ex) {
+            throw new SkyArkException("新增交易关联日志失败！chargeId=" + chargeRelation.getId() + ",ExceptionInfo = " + ex.getMessage());
+        }
     }
 
     @Override
@@ -127,8 +120,8 @@ public class TradeCommLogServiceImpl implements TradeCommLogService {
             return writeOffLogsIndb;
         }
         //生成销账日志流水
-        List<String> sequences = sysCommOperFeeService.getSequence(payLog.getEparchyCode(),
-                ActPayPubDef.SEQ_WRITEOFF_ID, writeOffLogsIndb.size(), payLog.getProvinceCode());
+        List<String> sequences = sysCommOperFeeService.getActingSequence(ActingPayPubDef.SEQ_WRITEOFFID_TABNAME,
+                ActingPayPubDef.SEQ_WRITEOFFID_COLUMNNAME, writeOffLogsIndb.size(), payLog.getProvinceCode());
 
         for (int i = 0; i < writeOffLogsIndb.size(); ++i) {
             writeOffLogsIndb.get(i).setWriteoffId(sequences.get(i));
@@ -145,48 +138,15 @@ public class TradeCommLogServiceImpl implements TradeCommLogService {
     }
 
     @Override
-    public void insertWriteOffLog(List<FeeWriteOffLog> feeWriteOffLogs, String provinceCode) {
-        if (CollectionUtils.isEmpty(feeWriteOffLogs)){
+    public void insertWriteOffLog(List<WriteOffLog> writeOffLogs) {
+        if (CollectionUtils.isEmpty(writeOffLogs)) {
             return;
         }
-        List<WriteOffLog> writeOffLogs = new ArrayList(feeWriteOffLogs.size());
-        for (FeeWriteOffLog feeWriteOffLog : feeWriteOffLogs) {
-            WriteOffLog writeOffLog = new WriteOffLog();
-            writeOffLog.setWriteoffId(feeWriteOffLog.getWriteoffId());
-            writeOffLog.setChargeId(feeWriteOffLog.getChargeId());
-            writeOffLog.setAcctId(feeWriteOffLog.getAcctId());
-            writeOffLog.setUserId(feeWriteOffLog.getUserId());
-            writeOffLog.setCycleId(feeWriteOffLog.getCycleId());
-            writeOffLog.setNetTypeCode(feeWriteOffLog.getNetTypeCode());
-            writeOffLog.setBillId(feeWriteOffLog.getBillId());
-            writeOffLog.setIntegrateItemCode(feeWriteOffLog.getIntegrateItemCode());
-            writeOffLog.setDepositCode(feeWriteOffLog.getDepositCode());
-            writeOffLog.setAcctBalanceId(feeWriteOffLog.getAcctBalanceId());
-            writeOffLog.setWriteoffFee(feeWriteOffLog.getWriteoffFee());
-            writeOffLog.setImpFee(feeWriteOffLog.getImpFee());
-            writeOffLog.setFee(feeWriteOffLog.getFee());
-            writeOffLog.setOldBalance(feeWriteOffLog.getOldBalance());
-            writeOffLog.setNewBalance(feeWriteOffLog.getNewBalance());
-            writeOffLog.setLateFee(feeWriteOffLog.getLateFee());
-            writeOffLog.setLateBalance(feeWriteOffLog.getLateBalance());
-            writeOffLog.setOldLateBalance(feeWriteOffLog.getOldLateBalance());
-            writeOffLog.setNewLateBalance(feeWriteOffLog.getNewLateBalance());
-            writeOffLog.setDerateLateFee(feeWriteOffLog.getDerateLateFee());
-            writeOffLog.setLatecalDate(feeWriteOffLog.getLatecalDate());
-            writeOffLog.setOldPaytag(feeWriteOffLog.getOldPaytag());
-            writeOffLog.setNewPaytag(feeWriteOffLog.getNewPaytag());
-            writeOffLog.setCanPaytag(feeWriteOffLog.getCanPaytag());
-            writeOffLog.setOperateTime(feeWriteOffLog.getOperateTime());
-            writeOffLog.setProvinceCode(feeWriteOffLog.getProvinceCode());
-            writeOffLog.setEparchyCode(feeWriteOffLog.getEparchyCode());
-            writeOffLog.setDrecvTimes(feeWriteOffLog.getDrecvTimes());
-            writeOffLog.setCancelTag(feeWriteOffLog.getCancelTag());
-            writeOffLog.setDepositLimitRuleid(feeWriteOffLog.getDepositLimitRuleid());
-            writeOffLog.setDepositPriorRuleid(feeWriteOffLog.getDepositPriorRuleid());
-            writeOffLog.setItemPriorRuleid(feeWriteOffLog.getItemPriorRuleid());
-            writeOffLogs.add(writeOffLog);
+        try {
+            writeOffLogDao.insertWriteOffLog(writeOffLogs);
+        } catch (Exception ex) {
+            throw new SkyArkException("新增销账日志失败！chargeId=" + writeOffLogs.get(0).getChargeId() + ",ExceptionInfo = " + ex.getMessage());
         }
-        writeOffLogDao.insertWriteOffLog(writeOffLogs, provinceCode);
     }
 
     @Override
@@ -211,8 +171,8 @@ public class TradeCommLogServiceImpl implements TradeCommLogService {
         }
         logger.debug("feeAccessLogs.size = " + feeAccessLogs.size());
         //存款日志流水
-        List<String> sequences = sysCommOperFeeService.getSequence(feePayLog.getRecvEparchyCode(),
-                ActPayPubDef.SEQ_ACCESS_ID, feeAccessLogs.size(), feePayLog.getProvinceCode());
+        List<String> sequences = sysCommOperFeeService.getActingSequence(ActingPayPubDef.SEQ_ACCESSID_TABNAME,
+                ActingPayPubDef.SEQ_ACCESSID_COLUMNNAME, feeAccessLogs.size(), feePayLog.getProvinceCode());
         List<FeeAccessLog> tmpAccessLogs = new ArrayList();
         for (int i = 0; i < feeAccessLogs.size(); i++) {
             feeAccessLogs.get(i).setAccessId(sequences.get(i));
@@ -224,131 +184,98 @@ public class TradeCommLogServiceImpl implements TradeCommLogService {
     }
 
     @Override
-    public void insertAccessLog(List<FeeAccessLog> feeAccessLogs, String provinceCode) {
-        if (CollectionUtils.isEmpty(feeAccessLogs)) {
+    public void insertAccessLog(List<AccessLog> accessLogs) {
+        if (CollectionUtils.isEmpty(accessLogs)) {
             return;
         }
-        List<AccessLog> accessLogs = new ArrayList(feeAccessLogs.size());
-        for (FeeAccessLog feeAccessLog : feeAccessLogs) {
-            AccessLog accessLog = new AccessLog();
-            accessLog.setAccessId(feeAccessLog.getAccessId ());
-            accessLog.setChargeId(feeAccessLog.getChargeId());
-            accessLog.setAcctId(feeAccessLog.getAcctId());
-            accessLog.setAcctBalanceId(feeAccessLog.getAcctBalanceId());
-            accessLog.setDepositCode(feeAccessLog.getDepositCode());
-            accessLog.setAccessTag(feeAccessLog.getAccessTag());
-            accessLog.setOldBalance(feeAccessLog.getOldBalance());
-            accessLog.setMoney(feeAccessLog.getMoney());
-            accessLog.setNewBalance(feeAccessLog.getNewBalance());
-            accessLog.setOperateTime(feeAccessLog.getOperateTime());
-            accessLog.setEparchyCode(feeAccessLog.getEparchyCode());
-            accessLog.setProvinceCode(feeAccessLog.getProvinceCode());
-            accessLog.setCancelTag(feeAccessLog.getCancelTag());
-            accessLog.setInvoiceFee(feeAccessLog.getInvoiceFee());
-            accessLogs.add(accessLog);
-        }
-        accessLogDao.insertAccessLog(accessLogs, provinceCode);
-    }
-
-    @Override
-    public void insertWriteSnapLog(FeeWriteSnapLog feeWriteSnapLog, String provinceCode) {
-        WriteSnapLog writeSnapLog = new WriteSnapLog();
-        writeSnapLog.setChargeId(feeWriteSnapLog.getChargeId());
-        writeSnapLog.setAcctId(feeWriteSnapLog.getAcctId());
-        writeSnapLog.setWriteoffMode(feeWriteSnapLog.getWriteoffMode());
-        writeSnapLog.setSpayFee(feeWriteSnapLog.getSpayFee());
-        writeSnapLog.setAllMoney(feeWriteSnapLog.getAllMoney());
-        writeSnapLog.setAllNewMoney(feeWriteSnapLog.getAllNewMoney());
-        writeSnapLog.setAllBalance(feeWriteSnapLog.getAllBalance());
-        writeSnapLog.setAllNewBalance(feeWriteSnapLog.getAllNewBalance());
-        writeSnapLog.setAllBOweFee(feeWriteSnapLog.getAllBOweFee());
-        writeSnapLog.setaImpFee(feeWriteSnapLog.getaImpFee());
-        writeSnapLog.setAllNewBOweFee(feeWriteSnapLog.getAllNewBOweFee());
-        writeSnapLog.setPreRealFee(feeWriteSnapLog.getPreRealFee());
-        writeSnapLog.setCurRealFee(feeWriteSnapLog.getCurRealFee());
-        writeSnapLog.setProtocolBalance(feeWriteSnapLog.getProtocolBalance());
-        writeSnapLog.setOperateTime(feeWriteSnapLog.getOperateTime());
-        writeSnapLog.setEparchyCode(feeWriteSnapLog.getEparchyCode());
-        writeSnapLog.setProvinceCode(feeWriteSnapLog.getProvinceCode());
-        writeSnapLog.setCycleId(feeWriteSnapLog.getCycleId());
-        writeSnapLog.setRemark(feeWriteSnapLog.getRemark());
-        writeSnapLog.setRsrvFee1(feeWriteSnapLog.getRsrvFee1());
-        writeSnapLog.setRsrvFee2(feeWriteSnapLog.getRsrvFee2());
-        writeSnapLog.setRsrvInfo1(feeWriteSnapLog.getRsrvInfo1());
-        if (writeSnapLogDao.insertWriteSnapLog(writeSnapLog, provinceCode) == 0) {
-            throw new SkyArkException("插入快照日志表失败!chargeId=" + writeSnapLog.getChargeId());
+        try {
+            accessLogDao.insertAccessLog(accessLogs);
+        } catch (Exception ex) {
+            throw new SkyArkException("新增销账日志失败！chargeId=" + accessLogs.get(0).getChargeId() + ",ExceptionInfo = " + ex.getMessage());
         }
     }
 
     @Override
-    public PayLogMQInfo genPayLogMQInfo(FeePayLog feePaylog) {
+    public void insertWriteSnapLog(WriteSnapLog writeSnapLog) {
+        try {
+            if (writeSnapLogDao.insertWriteSnapLog(writeSnapLog) == 0) {
+                throw new SkyArkException("插入快照日志表失败!chargeId=" + writeSnapLog.getChargeId());
+            }
+        } catch (Exception ex) {
+            throw new SkyArkException("新增销账日志失败！chargeId=" + writeSnapLog.getChargeId() + ",ExceptionInfo = " + ex.getMessage());
+        }
+
+    }
+
+    @Override
+    public PayLogMQInfo genPayLogMQInfo(PayLog payLog) {
         PayLogMQInfo payLogMQInfo = new PayLogMQInfo();
-        payLogMQInfo.setChargeId(feePaylog.getChargeId());
-        payLogMQInfo.setEparchyCode(feePaylog.getEparchyCode());
-        payLogMQInfo.setCityCode(feePaylog.getCityCode());
-        payLogMQInfo.setCustId(feePaylog.getCustId());
-        payLogMQInfo.setUserId(feePaylog.getUserId());
-        payLogMQInfo.setSerialNumber(feePaylog.getSerialNumber());
-        payLogMQInfo.setNetTypeCode(feePaylog.getNetTypeCode());
-        payLogMQInfo.setAcctId(feePaylog.getAcctId());
-        payLogMQInfo.setChannelId(feePaylog.getChannelId());
-        payLogMQInfo.setPaymentId(feePaylog.getPaymentId());
-        payLogMQInfo.setPayFeeModeCode(feePaylog.getPayFeeModeCode());
-        payLogMQInfo.setPaymentOp(feePaylog.getPaymentOp());
-        payLogMQInfo.setRecvFee(feePaylog.getRecvFee());
-        payLogMQInfo.setLimitMoney(feePaylog.getLimitMoney());
-        payLogMQInfo.setRecvTime(feePaylog.getRecvTime());
-        payLogMQInfo.setRecvProvinceCode(feePaylog.getRecvProvinceCode());
-        payLogMQInfo.setRecvEparchyCode(feePaylog.getRecvEparchyCode());
-        payLogMQInfo.setRecvCityCode(feePaylog.getRecvCityCode());
-        payLogMQInfo.setRecvDepartId(feePaylog.getRecvDepartId());
-        payLogMQInfo.setRecvStaffId(feePaylog.getRecvStaffId());
-        payLogMQInfo.setPaymentReasonCode(feePaylog.getPaymentReasonCode());
-        payLogMQInfo.setInputMode(feePaylog.getInputMode());
-        payLogMQInfo.setInputNo(feePaylog.getInputNo());
-        payLogMQInfo.setOuterTradeId(feePaylog.getOuterTradeId());
-        payLogMQInfo.setActionCode(feePaylog.getActionCode());
-        payLogMQInfo.setActionEventId(feePaylog.getActionEventId());
-        payLogMQInfo.setActTag(feePaylog.getActTag());
-        payLogMQInfo.setExtendTag(feePaylog.getActTag());
-        payLogMQInfo.setPaymentRuleId(feePaylog.getPaymentRuleId());
-        payLogMQInfo.setRemark(feePaylog.getRemark());
-        payLogMQInfo.setProvinceCode(feePaylog.getProvinceCode());
-        payLogMQInfo.setCancelStaffId(feePaylog.getCancelStaffId());
-        payLogMQInfo.setCancelDepartId(feePaylog.getCancelDepartId());
-        payLogMQInfo.setCancelCityCode(feePaylog.getCancelCityCode());
-        payLogMQInfo.setCancelEparchyCode(feePaylog.getCancelEparchyCode());
-        payLogMQInfo.setCancelChargeId(feePaylog.getCancelChargeId());
-        payLogMQInfo.setCancelTime(feePaylog.getCancelTime());
-        payLogMQInfo.setRsrvFee1(feePaylog.getRsrvFee1());
-        payLogMQInfo.setRsrvFee2(feePaylog.getRsrvFee2());
-        payLogMQInfo.setRsrvInfo1(feePaylog.getRsrvInfo1());
-        payLogMQInfo.setDevCode(feePaylog.getDevCode());
-        payLogMQInfo.setNpTag(feePaylog.getNpTag());
-        payLogMQInfo.setAgentTag(feePaylog.getAgentTag());
-        payLogMQInfo.setContractTag(feePaylog.getContractTag());
+        payLogMQInfo.setChargeId(payLog.getChargeId());
+        payLogMQInfo.setEparchyCode(payLog.getEparchyCode());
+        payLogMQInfo.setCityCode(payLog.getCityCode());
+        payLogMQInfo.setCustId(payLog.getCustId());
+        payLogMQInfo.setUserId(payLog.getUserId());
+        payLogMQInfo.setSerialNumber(payLog.getSerialNumber());
+        payLogMQInfo.setNetTypeCode(payLog.getNetTypeCode());
+        payLogMQInfo.setAcctId(payLog.getAcctId());
+        payLogMQInfo.setChannelId(payLog.getChannelId());
+        payLogMQInfo.setPaymentId(payLog.getPaymentId());
+        payLogMQInfo.setPayFeeModeCode(payLog.getPayFeeModeCode());
+        payLogMQInfo.setPaymentOp(payLog.getPaymentOp());
+        payLogMQInfo.setRecvFee(payLog.getRecvFee());
+        payLogMQInfo.setLimitMoney(payLog.getLimitMoney());
+        payLogMQInfo.setRecvTime(payLog.getRecvTime());
+        payLogMQInfo.setRecvProvinceCode(payLog.getRecvProvinceCode());
+        payLogMQInfo.setRecvEparchyCode(payLog.getRecvEparchyCode());
+        payLogMQInfo.setRecvCityCode(payLog.getRecvCityCode());
+        payLogMQInfo.setRecvDepartId(payLog.getRecvDepartId());
+        payLogMQInfo.setRecvStaffId(payLog.getRecvStaffId());
+        payLogMQInfo.setPaymentReasonCode(payLog.getPaymentReasonCode());
+        payLogMQInfo.setInputMode(payLog.getInputMode());
+        payLogMQInfo.setInputNo(payLog.getInputNo());
+        payLogMQInfo.setOuterTradeId(payLog.getOuterTradeId());
+        payLogMQInfo.setActionCode(payLog.getActionCode());
+        payLogMQInfo.setActionEventId(payLog.getActionEventId());
+        payLogMQInfo.setActTag(payLog.getActTag());
+        payLogMQInfo.setExtendTag(payLog.getActTag());
+        payLogMQInfo.setPaymentRuleId(payLog.getPaymentRuleId());
+        payLogMQInfo.setRemark(payLog.getRemark());
+        payLogMQInfo.setProvinceCode(payLog.getProvinceCode());
+        payLogMQInfo.setCancelStaffId(payLog.getCancelStaffId());
+        payLogMQInfo.setCancelDepartId(payLog.getCancelDepartId());
+        payLogMQInfo.setCancelCityCode(payLog.getCancelCityCode());
+        payLogMQInfo.setCancelEparchyCode(payLog.getCancelEparchyCode());
+        payLogMQInfo.setCancelChargeId(payLog.getCancelChargeId());
+        payLogMQInfo.setCancelTime(payLog.getCancelTime());
+        payLogMQInfo.setRsrvFee1(payLog.getRsrvFee1());
+        payLogMQInfo.setRsrvFee2(payLog.getRsrvFee2());
+        payLogMQInfo.setRsrvInfo1(payLog.getRsrvInfo1());
+        payLogMQInfo.setDevCode(payLog.getDevCode());
+        payLogMQInfo.setNpTag(payLog.getNpTag());
+        payLogMQInfo.setAgentTag(payLog.getAgentTag());
+        payLogMQInfo.setContractTag(payLog.getContractTag());
         return payLogMQInfo;
     }
 
     @Override
-    public List<AccessLogMQInfo> genAccessLogMQInfo(List<FeeAccessLog> feeAccessLogs) {
-        List<AccessLogMQInfo> accessLogMQInfos = new ArrayList(feeAccessLogs.size());
-        for (FeeAccessLog feeAccessLog :  feeAccessLogs) {
+    public List<AccessLogMQInfo> genAccessLogMQInfo(List<AccessLog> accessLogs) {
+        List<AccessLogMQInfo> accessLogMQInfos = new ArrayList(accessLogs.size());
+        for (AccessLog accessLog : accessLogs) {
             AccessLogMQInfo accessLogMQInfo = new AccessLogMQInfo();
-            accessLogMQInfo.setAccessId(feeAccessLog.getAccessId());
-            accessLogMQInfo.setAcctId(feeAccessLog.getAcctId());
-            accessLogMQInfo.setChargeId(feeAccessLog.getChargeId());
-            accessLogMQInfo.setAcctBalanceId(feeAccessLog.getAcctBalanceId());
-            accessLogMQInfo.setDepositCode(feeAccessLog.getDepositCode());
-            accessLogMQInfo.setOldBalance(feeAccessLog.getOldBalance());
-            accessLogMQInfo.setMoney(feeAccessLog.getMoney());
-            accessLogMQInfo.setNewBalance(feeAccessLog.getNewBalance());
-            accessLogMQInfo.setAccessTag(feeAccessLog.getAccessTag());
-            accessLogMQInfo.setOperateTime(feeAccessLog.getOperateTime());
-            accessLogMQInfo.setEparchyCode(feeAccessLog.getEparchyCode());
-            accessLogMQInfo.setCancelTag(feeAccessLog.getCancelTag());
-            accessLogMQInfo.setInvoiceFee(feeAccessLog.getInvoiceFee());
-            accessLogMQInfo.setProvinceCode(feeAccessLog.getProvinceCode());
+            accessLogMQInfo.setAccessId(accessLog.getAccessId());
+            accessLogMQInfo.setAcctId(accessLog.getAcctId());
+            accessLogMQInfo.setChargeId(accessLog.getChargeId());
+            accessLogMQInfo.setAcctBalanceId(accessLog.getAcctBalanceId());
+            accessLogMQInfo.setDepositCode(accessLog.getDepositCode());
+            accessLogMQInfo.setOldBalance(accessLog.getOldBalance());
+            accessLogMQInfo.setMoney(accessLog.getMoney());
+            accessLogMQInfo.setNewBalance(accessLog.getNewBalance());
+            accessLogMQInfo.setAccessTag(accessLog.getAccessTag());
+            accessLogMQInfo.setOperateTime(accessLog.getOperateTime());
+            accessLogMQInfo.setEparchyCode(accessLog.getEparchyCode());
+            accessLogMQInfo.setCancelTag(accessLog.getCancelTag());
+            accessLogMQInfo.setInvoiceFee(accessLog.getInvoiceFee());
+            accessLogMQInfo.setProvinceCode(accessLog.getProvinceCode());
             accessLogMQInfos.add(accessLogMQInfo);
         }
         return accessLogMQInfos;
